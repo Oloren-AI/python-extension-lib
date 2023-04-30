@@ -8,16 +8,23 @@ import traceback
 import threading
 import io
 import os
+import inspect
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "static"))
 
 CORS(app)
 
-FUNCTIONS = []
+FUNCTIONS = {}
 
-def register(func):
-    FUNCTIONS.append(func)
-    return func
+def register(name="", description=""):
+    def decorator(func):
+        FUNCTIONS[func.__name__] = func
+        signature = inspect.signature(func)
+        for param in signature.parameters.values():
+            print(param.name)
+            print(param.annotation)
+        return func
+    return decorator
 
 @app.route("/")
 def health_check():
@@ -29,7 +36,7 @@ def serve_static_files(path):
 
 @app.route("/directory", methods=["GET"])
 def get_directory():
-    with open("core/frontend/config.json", "r") as config_file:
+    with open(os.path.join(os.path.dirname(__file__), "../frontend/config.json"), "r") as config_file:
         config = json.load(config_file)
 
     nodes = list(config["nodes"].keys())
@@ -47,6 +54,7 @@ def download_from_signed_url(signed_url):
     return tmp_file.name
 
 def execute_function(dispatcher_url, body, FUNCTION_NAME):
+    print("Hello")
     try:
         outputs = FUNCTIONS[FUNCTION_NAME](body["node"], body["inputs"])
     except Exception as e:
@@ -105,6 +113,8 @@ def operator(FUNCTION_NAME):
     node = body["node"]
     inputs = body["inputs"]
     id = body["id"]
+
+    print("Received request for ", FUNCTION_NAME, " with body ", body)
 
     dispatcher_url = body.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
 
