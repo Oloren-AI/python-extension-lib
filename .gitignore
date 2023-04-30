@@ -4,3 +4,4 @@ node_modules
 .port
 oloren/static
 *.pyc
+oloren.egg-info

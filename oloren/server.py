@@ -4,15 +4,20 @@ import os
 import json
 import tempfile
 import requests
-import random
 import traceback
 import threading
 import io
-from urllib.parse import urlparse
+import os
 
+app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "static"))
 
-app = Flask(__name__, static_folder='../frontend/dist')
 CORS(app)
+
+FUNCTIONS = []
+
+def register(func):
+    FUNCTIONS.append(func)
+    return func
 
 @app.route("/")
 def health_check():
@@ -20,15 +25,10 @@ def health_check():
 
 @app.route("/ui/<path:path>")
 def serve_static_files(path):
-    print("SERVING STATIC FILES, ASKING FOR ", path)
     return send_from_directory(app.static_folder, path)
 
 @app.route("/directory", methods=["GET"])
 def get_directory():
-    hostname = request.headers.get("X-Forwarded-Host") or request.headers.get("Host")
-    print("DIRECTORY CALLED ")
-    print(os.getcwd())
-
     with open("core/frontend/config.json", "r") as config_file:
         config = json.load(config_file)
 
@@ -47,8 +47,6 @@ def download_from_signed_url(signed_url):
     return tmp_file.name
 
 def execute_function(dispatcher_url, body, FUNCTION_NAME):
-    print("EXECUTING FUNCTION ", FUNCTION_NAME)
-    print("FUNCTIONS ARE ", FUNCTIONS)
     try:
         outputs = FUNCTIONS[FUNCTION_NAME](body["node"], body["inputs"])
     except Exception as e:
@@ -117,5 +115,7 @@ def operator(FUNCTION_NAME):
     response.status_code = 200
     return response
 
+
 def run():
+    print("Running server at port 80!")
     app.run(host="0.0.0.0", port=80, debug=(os.getenv("MODE") != "PROD"))
