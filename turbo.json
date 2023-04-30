@@ -1,0 +1,12 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "pipeline": {
+    "uidev": {
+      "persistent": true
+    },
+    "dev": {
+      "persistent": true
+    },
+    "build": {}
+  }
+}

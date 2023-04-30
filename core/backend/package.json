@@ -1,0 +1,12 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.py",
+  "scripts": {
+    "dev": "python app.py"
+  },
+  "keywords": [],
+  "author": "Raunak Chowdhuri",
+  "license": "ISC"
+}

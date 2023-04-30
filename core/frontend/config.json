@@ -1,0 +1,7 @@
+{
+  "name": "python_chemical_lib",
+  "nodes": {
+    "Python Node": "./src/nodes/PythonExecNode",
+    "File Upload": "./src/nodes/FileUploadNode"
+  }
+}
