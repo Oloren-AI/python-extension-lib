@@ -6,3 +6,4 @@ oloren/static
 *.pyc
 oloren.egg-info
 build/lib/oloren
+.DS_Store
