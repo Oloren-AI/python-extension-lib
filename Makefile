@@ -22,3 +22,8 @@ build:
 	rsync -av --delete --delete-excluded --exclude=reports \
 		frontend/dist/ oloren/static/
 	cp frontend/config.json oloren/static/config.json
+
+.PHONY: pypi
+pypi:
+	python setup.py sdist bdist_wheel
+	twine upload dist/*

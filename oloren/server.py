@@ -170,8 +170,8 @@ def operator(FUNCTION_NAME):
     return response
 
 
-def run(name: str):
+def run(name: str, port=4823):
     global EXTENSION_NAME
     EXTENSION_NAME = name
-    port = 80 if os.getenv("MODE") == "PROD" else 4823
+    port = 80 if os.getenv("MODE") == "PROD" else port
     app.run(host="0.0.0.0", port=port, debug=(os.getenv("MODE") != "PROD"))
