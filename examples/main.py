@@ -1,4 +1,5 @@
 import oloren as olo
+import pandas as pd
 
 
 @olo.register(description="Basic math operations on two numbers.")
@@ -11,6 +12,11 @@ def operation(operation=olo.Choice(["Add", "Subtract", "Multiply", "Divide"]), a
         return a * b
     elif operation == "Divide":
         return a / b
+
+
+@olo.register(description="Convert CSV file to JSON")
+def dataframe_to_json(csv_file=olo.File()):
+    return pd.read_csv(csv_file).to_json()
 
 
 @olo.register()

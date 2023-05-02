@@ -87,20 +87,18 @@ def download_from_signed_url(signed_url):
 
 
 def execute_function(dispatcher_url, body, FUNCTION_NAME):
-    print("Hello")
     try:
         # TODO: handle inputs in addition to simple body data
 
         inputs = body["node"]["data"]
 
-        print(f"Node: {body['node']}")
-        print(f"Inputs: {body['inputs']}")
-
         if "input_handles" in body["node"]:
-            print("INPUT HANDLES", body["node"]["input_handles"])
             for input_idx, i in enumerate(sorted(body["node"]["input_handles"].keys())):
                 inputs[int(i)] = body["inputs"][input_idx]
-                print(f"INPUT {i} IS {body['inputs'][input_idx]}")
+
+        for i, input in enumerate(inputs):  # convert file inputs into file paths
+            if FUNCTIONS[FUNCTION_NAME][1].args[i].type == "File":
+                inputs[i] = download_from_signed_url(inputs[i]["url"])
 
         outputs = FUNCTIONS[FUNCTION_NAME][0](*inputs)
 
@@ -120,10 +118,8 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
             },
         )
 
-    print("OUTPUT IS ", outputs)
     try:
         files = {i: output for i, output in enumerate(outputs) if isinstance(output, io.BytesIO)}
-        print(files)
         if len(files) > 0:
             form_data = {
                 "node": body["id"],
@@ -140,8 +136,6 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
                 json={"node": body["id"], "output": [output for output in outputs]},
             )
 
-        print("Outputs is ", outputs)
-        print(response)
     except Exception:
         error_msg = traceback.format_exc()
         requests.post(
@@ -162,8 +156,6 @@ def operator(FUNCTION_NAME):
     body["inputs"]
     body["id"]
 
-    print("Received request for ", FUNCTION_NAME, " with body ", body)
-
     dispatcher_url = body.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
 
     t = threading.Thread(target=execute_function, args=(dispatcher_url, body, FUNCTION_NAME))
@@ -175,5 +167,5 @@ def operator(FUNCTION_NAME):
 
 
 def run():
-    print("Running server at port 4823!")
-    app.run(host="0.0.0.0", port=4823, debug=(os.getenv("MODE") != "PROD"))
+    port = 80 if os.getenv("MODE") == "PROD" else 4823
+    app.run(host="0.0.0.0", port=port, debug=(os.getenv("MODE") != "PROD"))
