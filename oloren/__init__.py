@@ -1,9 +1,18 @@
 from .server import register, run
 
 class choice:
-    def __init__(self, options):
-        self.options = options
+    def __init__(self, choices):
+        self.choices = choices
+
+    def config(self):
+        return {
+            "type": "choice",
+            "choices": self.choices
+        }
 
 class number:
-    def __init__(self ):
-        pass
+    @staticmethod
+    def config():
+        return {
+            "type": "number",
+        }

@@ -15,6 +15,8 @@ export interface FlowNodeData<T = Json> {
     scope: string;
     url: string;
   };
+  metadata: any;
+  [key: string]: unknown;
 }
 
 export interface NodeProps<T = Json> {
