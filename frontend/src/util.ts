@@ -1,3 +1,5 @@
+import { Config } from "./backend";
+
 export type Json = string | number | boolean | Json[] | { [key: string]: Json };
 
 export interface FlowNodeData<T = Json> {
@@ -15,7 +17,7 @@ export interface FlowNodeData<T = Json> {
     scope: string;
     url: string;
   };
-  metadata: any;
+  metadata: Config;
   [key: string]: unknown;
 }
 

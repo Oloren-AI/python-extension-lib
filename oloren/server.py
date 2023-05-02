@@ -8,34 +8,38 @@ import threading
 import io
 import os
 import inspect
+from dataclasses import asdict
+from .types import Type, Config, Ty
+from typing import Dict, Tuple, Callable
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "static"))
 
 CORS(app)
 
-FUNCTIONS = {}
+FUNCTIONS: Dict[str, Tuple[Callable, Config]] = {}
 
 
 def register(name="", description="", num_outputs=1):
     def decorator(func):
         signature = inspect.signature(func)
 
-        config = {
-            "name": name if name != "" else func.__name__,
-            "args": [],
-            "operator": func.__name__,
-            "num_outputs": num_outputs,
-        }
-
-        if description != "":
-            config["description"] = description
+        config = Config(
+            name=name if name != "" else func.__name__,
+            args=[],
+            operator=func.__name__,
+            num_outputs=num_outputs,
+            description=description if description != "" else None,
+        )
 
         for param in signature.parameters.values():
-            config["args"].append({"name": param.name, **param.annotation.config()})
+            if isinstance(param.default, type):
+                raise TypeError("Default values for parameters must be literals.")
+            if not isinstance(param.default, Type):
+                raise TypeError(f"Parameter {param.name} of function {func.__name__} has an invalid type.")
 
-        print(config)
+            config.args.append(Ty(param.name, param.default, type=param.default.__class__.__name__))
 
-        FUNCTIONS[func.__name__] = [func, config]
+        FUNCTIONS[func.__name__] = (func, config)
 
         return func
 
@@ -66,7 +70,7 @@ def get_directory():
                     "module": node,
                     "scope": config["name"],
                     "url": "/ui/remoteEntry.js",
-                    "metadata": function[1],
+                    "metadata": asdict(function[1]),
                 }
                 for name, function in FUNCTIONS.items()
             ]

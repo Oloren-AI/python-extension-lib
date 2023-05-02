@@ -2,7 +2,7 @@ import oloren as olo
 
 
 @olo.register(description="Basic math operations on two numbers.")
-def operation(operation: olo.choice(["Add", "Subtract", "Multiply", "Divide"]), a: olo.num, b: olo.num):
+def operation(operation=olo.Choice(["Add", "Subtract", "Multiply", "Divide"]), a=olo.Num(), b=olo.Num()):
     if operation == "Add":
         return a + b
     elif operation == "Subtract":
@@ -14,7 +14,7 @@ def operation(operation: olo.choice(["Add", "Subtract", "Multiply", "Divide"]), 
 
 
 @olo.register()
-def number(num: olo.num):
+def number(num=olo.Num()):
     return num
 
 

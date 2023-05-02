@@ -1,26 +1,61 @@
-# Extension Sample
+# Oloren Orchestrator - Python Extension Library
 
-This is a sample extension which implements each of the basic extension components in a simple/extensible framework.
+## Usage
 
-Run via `pnpm turbo dev`
+### Installation
 
-Update config.json when adding new nodes.
+```bash
+pip install oloren
+```
 
-## Tour of the code base
+A requirement is that you use Python version > 3.7 as the code uses dataclasses which were introduced in that version.
 
-The three main components are the `Dockerfile`, `core/backend`, and `core/frontend`
+If for some reason you want to use it with Python 3.6 you can install the backport of dataclasses for Python 3.6 with:
 
-The Dockerfile is what is used by the AWS Elastic Cloud Service to launch the extension and maintain it in the cloud. The current Dockerfile is configured for an express server.
+```bash
+pip install dataclasses
+```
 
-`core/backend` defines the endpoints which are called by dispatcher to execute the logic of the nodes.
-`core/frontend` defines the components which are called by the orchestrator app to display the nodes in the Graph Editor.
+### Getting Started
 
-### core/backend 
+Check out this minimal example to get started:
 
-The logic of the nodes is defined in `core/backend/src/functions.ts`. These functions are registered via `export const FUNCTIONS...`, and are converted to endpoints in `index.ts` via ``FUNCTIONS.map((func) => { app.post(\`/operator/${func.name}`,...``.
+```python
+import oloren as olo
 
-### core/frontend
 
-An enumeration of all component nodes defined by this extension is in `core/frontend/config.json` which should map names to components defined in `core/frontend/src/nodes/*`.
+@olo.register(description="Basic math operations on two numbers.")
+def operation(operation=olo.Choice(["Add", "Subtract", "Multiply", "Divide"]), a=olo.Num(), b=olo.Num()):
+    if operation == "Add":
+        return a + b
+    elif operation == "Subtract":
+        return a - b
+    elif operation == "Multiply":
+        return a * b
+    elif operation == "Divide":
+        return a / b
 
-Note that we define an `operator` property which is `${baseUrl(node.remote.url)}/operator/operation` which maps to a function operator in the backend.
+
+@olo.register()
+def number(num=olo.Num()):
+    return num
+
+
+if __name__ == "__main__":
+    olo.run()
+```
+
+The key requirements are that each argument of your function has a default value that is set to one of the special
+Oloren types. These types subclass their relevant returned data types (e.g. string, int, float) so your autocomplete
+will work as normal.
+
+## Contributing
+
+Full contributing docs are a todo, but here are some useful commands to keep in mind when making modifications to this library.
+
+```bash
+make types  # build typescript types from types.py
+make dev  # start dev frontend server
+make build  # build frontend code
+make pypi  # push code to pypi
+```

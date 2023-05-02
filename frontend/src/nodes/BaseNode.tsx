@@ -26,6 +26,7 @@ import {
 import { RcFile } from "antd/es/upload";
 import "./style.css";
 import "antd/dist/reset.css";
+import { Choice, Num, Ty } from "../backend";
 
 const dataSchema = z.array(z.any());
 
@@ -41,7 +42,7 @@ function RenderArgument({
   idx: key,
 }: {
   idx: number;
-  arg: any;
+  arg: Ty;
   argValue: any;
   setArg: (newArg: any) => void;
   setNode: NodeSetter<any[]>;
@@ -121,36 +122,54 @@ function RenderArgument({
             value: "ui",
             disabled: true,
           },
-          { icon: <PicCenterOutlined tw="pt-[3px]" />, value: "node" },
+          {
+            icon: <PicCenterOutlined tw="pt-[3px]" />,
+            value: "node",
+            disabled: arg.type === "File",
+          },
         ]}
       />
       <Typography.Text tw="w-fit">{arg.name}</Typography.Text>
-      {arg.type === "choice" ? (
-        <Select
-          tw="grow"
-          className="nodrag"
-          disabled={mode !== "node"}
-          value={argValue && argValue != nullValue ? argValue : undefined}
-          options={arg.choices.map((x: string) => ({ value: x, label: x }))}
-          onChange={(newArg) => {
-            setArg(newArg);
-          }}
-        />
-      ) : arg.type === "number" ? (
-        <InputNumber
-          tw="grow"
-          className="nodrag"
-          disabled={mode !== "node"}
-          value={argValue && argValue != nullValue ? argValue : undefined}
-          onChange={(newArg) => {
-            if (newArg) setArg(newArg);
-          }}
-        />
-      ) : (
-        <Typography.Text tw="grow" color="red" className="nodrag">
-          Unknown type
-        </Typography.Text>
-      )}
+      {(() => {
+        switch (arg.type) {
+          case "Choice":
+            return (
+              <Select
+                tw="grow"
+                className="nodrag"
+                disabled={mode !== "node"}
+                value={argValue && argValue != nullValue ? argValue : undefined}
+                options={(arg.ty as Choice).choices.map((x: string) => ({
+                  value: x,
+                  label: x,
+                }))}
+                onChange={(newArg) => {
+                  setArg(newArg);
+                }}
+              />
+            );
+          case "Num":
+            return (
+              <InputNumber
+                tw="grow"
+                className="nodrag"
+                disabled={mode !== "node"}
+                min={(arg.ty as Num).min_value ?? undefined}
+                max={(arg.ty as Num).max_value ?? undefined}
+                value={argValue && argValue != nullValue ? argValue : undefined}
+                onChange={(newArg) => {
+                  if (newArg) setArg(newArg);
+                }}
+              />
+            );
+          case "File":
+            return null;
+          default: {
+            const exhaustiveCheck: never = arg.type;
+            throw new Error("Unhandled argument type");
+          }
+        }
+      })()}
     </div>
   );
 }
