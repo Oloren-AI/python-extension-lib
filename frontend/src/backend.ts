@@ -14,14 +14,18 @@ export interface Num {
 export interface String {
 }
 
+export interface Bool {
+    default: boolean;
+}
+
 export interface File {
     allowed_extensions: Array<string> | null;
 }
 
 export interface Ty {
     name: string;
-    ty: Choice | Num | File;
-    type: "Choice" | "Num" | "String" | "File";
+    ty: Choice | Num | File | Bool;
+    type: "Choice" | "Num" | "String" | "Bool" | "File";
 }
 
 export interface Config {

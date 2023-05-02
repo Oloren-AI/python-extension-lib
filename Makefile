@@ -5,7 +5,7 @@ init:
 .PHONY: types
 types:
 	python -c "import py_ts_interfaces" || (echo "Install py-ts-interfaces to build types" && exit 1)
-	py-ts-interfaces oloren/types.py -o frontend/src/backend.ts
+	py-ts-interfaces lib/oloren/types.py -o frontend/src/backend.ts
 	perl -i -pe 's/^interface/export interface/g' frontend/src/backend.ts
 	python lib/oloren/types.py frontend/src/backend.ts
 

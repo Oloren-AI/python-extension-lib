@@ -5,6 +5,7 @@ import {
   Radio,
   Segmented,
   Select,
+  Switch,
   Typography,
   Upload,
 } from "antd";
@@ -27,7 +28,7 @@ import {
 import { RcFile } from "antd/es/upload";
 import "./style.css";
 import "antd/dist/reset.css";
-import { Choice, Num, Ty } from "../backend";
+import { Bool, Choice, Num, Ty } from "../backend";
 
 const dataSchema = z.array(z.any());
 
@@ -173,6 +174,20 @@ function RenderArgument({
                 onChange={(e) => {
                   setArg(e.target.value);
                 }}
+              />
+            );
+          case "Bool":
+            return (
+              <Switch
+                disabled={mode !== "node"}
+                onChange={(newArg) => {
+                  setArg(newArg);
+                }}
+                checked={
+                  argValue && argValue != nullValue
+                    ? argValue
+                    : (arg.ty as Bool).default
+                }
               />
             );
           case "File":

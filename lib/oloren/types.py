@@ -30,6 +30,11 @@ class String(str, Type):
 
 
 @dataclass(frozen=True)
+class Bool(Type):
+    default: bool = False
+
+
+@dataclass(frozen=True)
 class File(str, Type):
     allowed_extensions: Optional[List[str]] = None
 
@@ -37,7 +42,7 @@ class File(str, Type):
 @dataclass(frozen=True)
 class Ty(Interface):
     name: str
-    ty: Union[Choice, Num, File]
+    ty: Union[Choice, Num, File, Bool]
     type: str
 
 
