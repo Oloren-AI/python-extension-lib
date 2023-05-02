@@ -1,4 +1,4 @@
-from flask import Flask, request, send_from_directory, jsonify
+from flask import Flask, Response, request, send_from_directory, jsonify
 from flask_cors import CORS
 import json
 import tempfile
@@ -17,6 +17,7 @@ app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "sta
 CORS(app)
 
 FUNCTIONS: Dict[str, Tuple[Callable, Config]] = {}
+EXTENSION_NAME = ""
 
 
 def register(name="", description="", num_outputs=1):
@@ -53,22 +54,25 @@ def health_check():
 
 @app.route("/ui/<path:path>")
 def serve_static_files(path):
+    if path.endswith("remoteEntry.js"):
+        with open(os.path.join(app.static_folder, path), "r") as file:
+            content = file.read()
+            new_content = content.replace("var EXTENSIONNAME;", f"var {EXTENSION_NAME};").replace(
+                "EXTENSIONNAME = __webpack_exports__;", f"{EXTENSION_NAME} = __webpack_exports__;"
+            )
+        return Response(new_content, content_type="application/javascript")
+
     return send_from_directory(app.static_folder, path)
 
 
 @app.route("/directory", methods=["GET"])
 def get_directory():
-    with open(os.path.join(app.static_folder, "config.json"), "r") as config_file:
-        config = json.load(config_file)
-
-    node = list(config["nodes"].keys())[0]
-
     return jsonify(
         {
             "nodes": [
                 {
-                    "module": node,
-                    "scope": config["name"],
+                    "module": "Base Node",
+                    "scope": EXTENSION_NAME,
                     "url": "/ui/remoteEntry.js",
                     "metadata": asdict(function[1]),
                 }
@@ -166,26 +170,8 @@ def operator(FUNCTION_NAME):
     return response
 
 
-def find_and_replace_file(path, find, replace):
-    with open(path, "r") as f:
-        content = f.read()
-    content = content.replace(find, replace)
-    with open(path, "w") as f:
-        f.write(content)
-
-
 def run(name: str):
-    find_and_replace_file(os.path.join(app.static_folder, "config.json"), "python_chemical_lib")
-    find_and_replace_file(os.path.join(app.static_folder, "remoteEntry.js"), "python_chemical_lib")
-
-    with open(os.path.join(app.static_folder, "config.json"), "r") as config_file:
-        config = json.load(config_file)
-    config["name"] = name
-    with open(os.path.join(app.static_folder, "config.json"), "w") as config_file:
-        json.dump(config, config_file)
-
-    with open(os.path.join(app.static_folder, "remoteEntry.js"), "w") as config_file:
-        config = json.load(config_file)
-
+    global EXTENSION_NAME
+    EXTENSION_NAME = name
     port = 80 if os.getenv("MODE") == "PROD" else 4823
     app.run(host="0.0.0.0", port=port, debug=(os.getenv("MODE") != "PROD"))

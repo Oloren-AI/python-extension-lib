@@ -1,5 +1,5 @@
 {
-  "name": "python_chemical_lib",
+  "name": "EXTENSIONNAME",
   "nodes": {
     "Base Node": "./src/nodes/BaseNode"
   }

@@ -25,4 +25,4 @@ def twooutputs(s=olo.String(), num=olo.Num()):
 
 
 if __name__ == "__main__":
-    olo.run()
+    olo.run("raunakextension")
