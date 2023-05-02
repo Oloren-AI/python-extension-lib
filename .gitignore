@@ -5,3 +5,4 @@ node_modules
 oloren/static
 *.pyc
 oloren.egg-info
+build/lib/oloren
