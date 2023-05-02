@@ -21,3 +21,4 @@ build:
 	rm -rf oloren/static
 	rsync -av --delete --delete-excluded --exclude=reports \
 		frontend/dist/ oloren/static/
+	cp frontend/config.json oloren/static/config.json

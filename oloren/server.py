@@ -58,7 +58,7 @@ def serve_static_files(path):
 
 @app.route("/directory", methods=["GET"])
 def get_directory():
-    with open(os.path.join(os.path.dirname(__file__), "../frontend/config.json"), "r") as config_file:
+    with open(os.path.join(app.static_folder, "config.json"), "r") as config_file:
         config = json.load(config_file)
 
     node = list(config["nodes"].keys())[0]
@@ -166,6 +166,26 @@ def operator(FUNCTION_NAME):
     return response
 
 
-def run():
+def find_and_replace_file(path, find, replace):
+    with open(path, "r") as f:
+        content = f.read()
+    content = content.replace(find, replace)
+    with open(path, "w") as f:
+        f.write(content)
+
+
+def run(name: str):
+    find_and_replace_file(os.path.join(app.static_folder, "config.json"), "python_chemical_lib")
+    find_and_replace_file(os.path.join(app.static_folder, "remoteEntry.js"), "python_chemical_lib")
+
+    with open(os.path.join(app.static_folder, "config.json"), "r") as config_file:
+        config = json.load(config_file)
+    config["name"] = name
+    with open(os.path.join(app.static_folder, "config.json"), "w") as config_file:
+        json.dump(config, config_file)
+
+    with open(os.path.join(app.static_folder, "remoteEntry.js"), "w") as config_file:
+        config = json.load(config_file)
+
     port = 80 if os.getenv("MODE") == "PROD" else 4823
     app.run(host="0.0.0.0", port=port, debug=(os.getenv("MODE") != "PROD"))
