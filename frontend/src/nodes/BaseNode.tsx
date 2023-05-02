@@ -1,5 +1,6 @@
 import {
   Button,
+  Input,
   InputNumber,
   Radio,
   Segmented,
@@ -159,6 +160,18 @@ function RenderArgument({
                 value={argValue && argValue != nullValue ? argValue : undefined}
                 onChange={(newArg) => {
                   if (newArg) setArg(newArg);
+                }}
+              />
+            );
+          case "String":
+            return (
+              <Input
+                tw="grow"
+                className="nodrag"
+                disabled={mode !== "node"}
+                value={argValue && argValue != nullValue ? argValue : undefined}
+                onChange={(e) => {
+                  setArg(e.target.value);
                 }}
               />
             );

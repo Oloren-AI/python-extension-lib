@@ -19,9 +19,9 @@ def dataframe_to_json(csv_file=olo.File()):
     return pd.read_csv(csv_file).to_json()
 
 
-@olo.register()
-def number(num=olo.Num()):
-    return num
+@olo.register(num_outputs=2)
+def twooutputs(s=olo.String(), num=olo.Num()):
+    return s, num
 
 
 if __name__ == "__main__":

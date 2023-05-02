@@ -25,6 +25,11 @@ class Num(float, Type):
 
 
 @dataclass(frozen=True)
+class String(str, Type):
+    pass
+
+
+@dataclass(frozen=True)
 class File(str, Type):
     allowed_extensions: Optional[List[str]] = None
 
