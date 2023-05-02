@@ -7,7 +7,7 @@ types:
 	python -c "import py_ts_interfaces" || (echo "Install py-ts-interfaces to build types" && exit 1)
 	py-ts-interfaces oloren/types.py -o frontend/src/backend.ts
 	perl -i -pe 's/^interface/export interface/g' frontend/src/backend.ts
-	python oloren/types.py frontend/src/backend.ts
+	python lib/oloren/types.py frontend/src/backend.ts
 
 
 .PHONY: dev
@@ -25,5 +25,4 @@ build:
 
 .PHONY: pypi
 pypi:
-	python setup.py sdist bdist_wheel
-	twine upload dist/*
+	cd lib/ ; python setup.py sdist bdist_wheel
