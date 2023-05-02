@@ -2,6 +2,7 @@ from flask import Flask, Response, request, send_from_directory, jsonify
 from flask_cors import CORS
 import json
 import tempfile
+from .util import OutputFile
 import requests
 import traceback
 import threading
@@ -93,6 +94,7 @@ def download_from_signed_url(signed_url):
 
 
 def execute_function(dispatcher_url, body, FUNCTION_NAME):
+    cur_dir = os.getcwd()
     try:
         # TODO: handle inputs in addition to simple body data
 
@@ -106,29 +108,38 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
             if FUNCTIONS[FUNCTION_NAME][1].args[i].type == "File":
                 inputs[i] = download_from_signed_url(inputs[i]["url"])
 
-        outputs = FUNCTIONS[FUNCTION_NAME][0](*inputs)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            os.chdir(tmp_dir)
 
-        if isinstance(outputs, tuple):
-            outputs = list(outputs)
-        else:
-            outputs = [outputs]
+            outputs = FUNCTIONS[FUNCTION_NAME][0](*inputs)
 
-        files = {i: output for i, output in enumerate(outputs) if isinstance(output, io.BytesIO)}
-        if len(files) > 0:
-            form_data = {
-                "node": body["id"],
-                "output": json.dumps([output if not isinstance(output, io.BytesIO) else "" for output in outputs]),
-            }
+            if isinstance(outputs, tuple):
+                outputs = list(outputs)
+            else:
+                outputs = [outputs]
 
-            files = {str(i): f for i, f in enumerate(outputs) if isinstance(f, io.BytesIO)}
+            # Convert output files
+            for i, output in enumerate(outputs):
+                if isinstance(output, OutputFile):
+                    with open(output.path, "rb") as file:
+                        outputs[i] = io.BytesIO(file.read())
 
-            response = requests.post(f"{dispatcher_url}/node_finished_file", data=form_data, files=files)
-        else:
-            response = requests.post(
-                f"{dispatcher_url}/node_finished",
-                headers={"Content-Type": "application/json"},
-                json={"node": body["id"], "output": [output for output in outputs]},
-            )
+            files = {i: output for i, output in enumerate(outputs) if isinstance(output, io.BytesIO)}
+            if len(files) > 0:
+                form_data = {
+                    "node": body["id"],
+                    "output": json.dumps([output if not isinstance(output, io.BytesIO) else "" for output in outputs]),
+                }
+
+                files = {str(i): f for i, f in enumerate(outputs) if isinstance(f, io.BytesIO)}
+
+                response = requests.post(f"{dispatcher_url}/node_finished_file", data=form_data, files=files)
+            else:
+                response = requests.post(
+                    f"{dispatcher_url}/node_finished",
+                    headers={"Content-Type": "application/json"},
+                    json={"node": body["id"], "output": [output for output in outputs]},
+                )
 
     except Exception:
         error_msg = traceback.format_exc()
@@ -140,6 +151,8 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
                 "error": error_msg,
             },
         )
+    finally:
+        os.chdir(cur_dir)
 
 
 # Replace this with a loop over your FUNCTIONS

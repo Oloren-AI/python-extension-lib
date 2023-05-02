@@ -19,6 +19,17 @@ def dataframe_to_json(csv_file=olo.File()):
     return pd.read_csv(csv_file).to_json()
 
 
+@olo.register(description="Head of CSV file")
+def head(csv_file=olo.File(), rows=olo.Num()):
+    pd.read_csv(csv_file).head(rows).to_csv("head.csv")
+    return olo.OutputFile("head.csv")
+
+
+@olo.register()
+def boolean(b=olo.Bool()):
+    return b
+
+
 @olo.register(num_outputs=2)
 def twooutputs(s=olo.String(), num=olo.Num()):
     return s, num
