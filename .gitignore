@@ -2,9 +2,9 @@ dist
 node_modules
 .turbo
 .port
-oloren/static
 *.pyc
 oloren.egg-info
 build/lib/oloren
 .DS_Store
 lib/build/lib/oloren
+lib/oloren/static

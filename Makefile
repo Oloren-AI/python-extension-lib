@@ -12,17 +12,22 @@ types:
 
 .PHONY: dev
 dev:
-	rm -rf oloren/static ; ln -s ../frontend/dist oloren/static
+	rm -rf lib/oloren/static ; ln -s ../frontend/dist lib/oloren/static
 	cd frontend/ ; pnpm run dev
 
 .PHONY: build
 build:
 	cd frontend/ ; pnpm run build
-	rm -rf oloren/static
+	rm -rf lib/oloren/static
 	rsync -av --delete --delete-excluded --exclude=reports \
-		frontend/dist/ oloren/static/
-	cp frontend/config.json oloren/static/config.json
+		frontend/dist/ lib/oloren/static/
 
 .PHONY: pypi
 pypi:
+	make clean
+	make build
 	cd lib/ ; python setup.py sdist bdist_wheel
+	cd lib/ ; twine upload dist/*
+
+clean:
+	rm -rf lib/dist lib/build lib/*.egg-info lib/oloren/static

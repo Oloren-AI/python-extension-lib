@@ -24,5 +24,15 @@ def twooutputs(s=olo.String(), num=olo.Num()):
     return s, num
 
 
+@olo.register()
+def number(num=olo.Num()):
+    return num
+
+
+@olo.register()
+def string(s=olo.String()):
+    return s
+
+
 if __name__ == "__main__":
     olo.run("raunakextension")

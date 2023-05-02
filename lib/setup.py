@@ -2,8 +2,9 @@ from setuptools import setup, find_packages
 
 setup(
     name="oloren",
-    version="0.0.1",
+    version="0.0.2",
     packages=find_packages(exclude=("examples", "frontend")),
+    python_requires=">=3.6",
     install_requires=[
         "flask",
     ],

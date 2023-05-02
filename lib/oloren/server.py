@@ -57,8 +57,10 @@ def serve_static_files(path):
     if path.endswith("remoteEntry.js"):
         with open(os.path.join(app.static_folder, path), "r") as file:
             content = file.read()
-            new_content = content.replace("var EXTENSIONNAME;", f"var {EXTENSION_NAME};").replace(
-                "EXTENSIONNAME = __webpack_exports__;", f"{EXTENSION_NAME} = __webpack_exports__;"
+            new_content = (
+                content.replace("var EXTENSIONNAME;", f"var {EXTENSION_NAME};")
+                .replace("EXTENSIONNAME = __webpack_exports__;", f"{EXTENSION_NAME} = __webpack_exports__;")
+                .replace("EXTENSIONNAME=m", f"{EXTENSION_NAME}=m")  # for the built version
             )
         return Response(new_content, content_type="application/javascript")
 
@@ -111,18 +113,6 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
         else:
             outputs = [outputs]
 
-    except Exception:
-        error_msg = traceback.format_exc()
-        requests.post(
-            f"{dispatcher_url}/node_error",
-            headers={"Content-Type": "application/json"},
-            json={
-                "node": body["id"],
-                "error": error_msg,
-            },
-        )
-
-    try:
         files = {i: output for i, output in enumerate(outputs) if isinstance(output, io.BytesIO)}
         if len(files) > 0:
             form_data = {
