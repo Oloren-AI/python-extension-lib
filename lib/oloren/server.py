@@ -22,6 +22,24 @@ EXTENSION_NAME = ""
 
 
 def register(name="", description="", num_outputs=1):
+    """Register a function as an extension.
+
+    The generated server satisfies the Oloren Orchestrator Extension API specification.
+
+    Include a call to this at the bottom of your entry script.
+
+    Args:
+        name (str): Defaults to the name of the function.
+        description (Optional[str]): A description of the function.
+        num_outputs (int): The number of outputs the function returns. Defaults to 1.
+
+    Example::
+
+        @olo.register(name="foo", description="Returns foo and bar", num_outputs=2)
+        def fun():
+            return "foo", "bar"
+    """
+
     def decorator(func):
         signature = inspect.signature(func)
 
@@ -174,7 +192,26 @@ def operator(FUNCTION_NAME):
 
 
 def run(name: str, port=4823):
+    """Runs the extension. Launches a HTTP server at the specified port for development and port 80 for production.
+
+    The generated server satisfies the Oloren Orchestrator Extension API specification.
+
+    Include a call to this at the bottom of your entry script.
+
+    Args:
+        name (str): A globally unique name for the extension. The name must be a valid javascript variable name.
+        port (int): Optional port number for use in development.
+
+    Example::
+
+        if __name__ == "__main__":
+            olo.run("sample_extension", port=5829)
+    """
+
     global EXTENSION_NAME
-    EXTENSION_NAME = name
+    EXTENSION_NAME = name.replace(" ", "").replace("-", "_")
     port = 80 if os.getenv("MODE") == "PROD" else port
     app.run(host="0.0.0.0", port=port, debug=(os.getenv("MODE") != "PROD"))
+
+
+__all__ = ["register", "run"]

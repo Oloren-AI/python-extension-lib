@@ -4,14 +4,14 @@ This library uses the default values of the functions you define (hooks) to auto
 on Oloren's Orchestrator tool. Below, we have the documentation and sample code for each of the types defined by the
 tool.
 
-#### Outputs
+## Outputs
 
 ```{eval-rst}
 .. automodule:: oloren.util
    :members:
 ```
 
-#### Parameters
+## Parameters
 
 ```{eval-rst}
 .. automodule:: oloren.types

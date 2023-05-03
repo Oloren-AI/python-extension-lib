@@ -6,9 +6,10 @@
 
 ```{eval-rst}
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 4
    :hidden:
 
    core.md
    types.md
+   packaging.md
 ```

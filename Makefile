@@ -1,6 +1,6 @@
 .PHONY: init
 init:
-	cd frontend/ ; pnpm install
+	cd frontend/ ; pnpm installG
 
 .PHONY: types
 types:
@@ -28,6 +28,10 @@ pypi:
 	make build
 	cd lib/ ; python setup.py sdist bdist_wheel
 	cd lib/ ; twine upload dist/*
+
+.PHONY: docs
+docs:
+	cd docs/ ; make html
 
 clean:
 	rm -rf lib/dist lib/build lib/*.egg-info lib/oloren/static
