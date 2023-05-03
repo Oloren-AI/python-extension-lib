@@ -8,3 +8,5 @@ build/lib/oloren
 .DS_Store
 lib/build/lib/oloren
 lib/oloren/static
+docs/_build/html/_static
+docs/_build

@@ -1,8 +1,6 @@
-# Oloren Orchestrator - Python Extension Library
+## Oloren Orchestrator - Python Extension Library
 
-## Usage
-
-### Installation
+#### Installation
 
 ```bash
 pip install oloren
@@ -16,7 +14,7 @@ If for some reason you want to use it with Python 3.6 you can install the backpo
 pip install dataclasses
 ```
 
-### Getting Started
+#### Getting Started
 
 Check out this minimal example to get started:
 
@@ -54,14 +52,3 @@ if __name__ == "__main__":
 The key requirements are that each argument of your function has a default value that is set to one of the special
 Oloren types. These types subclass their relevant returned data types (e.g. string, int, float) so your autocomplete
 will work as normal.
-
-## Contributing
-
-Full contributing docs are a todo, but here are some useful commands to keep in mind when making modifications to this library.
-
-```bash
-make types  # build typescript types from types.py
-make dev  # start dev frontend server
-make build  # build frontend code
-make pypi  # push code to pypi
-```
