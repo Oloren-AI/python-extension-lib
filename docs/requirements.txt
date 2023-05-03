@@ -1,0 +1,5 @@
+furo
+myst_parser
+flask
+flask_cors
+sphinx
