@@ -23,13 +23,13 @@ To package your extension and prepare it for deployment on Oloren Orchestrator y
   ```
 
   - The CPU refers to the number of CPU cores available.
-  - The memory must be specified in units of MB.
+  - The memory must be specified in units of MiB.
   - The storage must be a value between 25 - 200, in units of GB
   - The following configurations are valid as defined in the [AWS Documentation](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html#w354aac15c27c21b9b1b3c13):
 
     | CPU value      | Memory value                                |
     | -------------- | ------------------------------------------- |
-    | 256 (.25 vCPU) | 512 MiB, 1 GB, 2 GB                         |
+    | 256 (.25 vCPU) | 512 (0.5 GB), 1024 (1 GB), 2048 (2 GB)      |
     | 512 (.5 vCPU)  | 1 GB, 2 GB, 3 GB, 4 GB                      |
     | 1024 (1 vCPU)  | 2 GB, 3 GB, 4 GB, 5 GB, 6 GB, 7 GB, 8 GB    |
     | 2048 (2 vCPU)  | Between 4 GB and 16 GB in 1 GB increments   |
