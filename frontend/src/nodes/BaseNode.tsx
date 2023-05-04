@@ -28,12 +28,27 @@ import {
 import { RcFile } from "antd/es/upload";
 import "./style.css";
 import "antd/dist/reset.css";
-import { Bool, Choice, Num, Ty } from "../backend";
+import {
+  Bool,
+  Choice,
+  Num,
+  Option,
+  Ty,
+  String as BackendString,
+  nullValue,
+} from "../backend";
 
 const dataSchema = z.array(z.any());
 
-// define custom null value because data cannot be set to null
-const nullValue = "SPECIALNULLVALUEDONOTSETEVER";
+interface RenderArgumentProps {
+  idx: number;
+  arg: Ty;
+  argValue: any;
+  setArg?: (newArg: any) => void;
+  setNode: NodeSetter<any[]>;
+  callUpdate: () => void;
+  optional?: boolean;
+}
 
 function RenderArgument({
   arg,
@@ -42,30 +57,30 @@ function RenderArgument({
   setArg: setFullValue,
   setNode,
   idx: key,
-}: {
-  idx: number;
-  arg: Ty;
-  argValue: any;
-  setArg: (newArg: any) => void;
-  setNode: NodeSetter<any[]>;
-  callUpdate: () => void;
-}) {
+  optional = false,
+}: RenderArgumentProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   const mode = fullValue ? fullValue["mode"] : "node";
   const argValue = fullValue ? fullValue["value"] : fullValue;
 
   const setArg = (newArg: any) => {
-    setFullValue({ mode, value: newArg });
+    if (setFullValue) setFullValue({ mode, value: newArg });
   };
 
   const setMode = (newMode: string) => {
-    setFullValue({ mode: newMode, value: argValue });
+    if (setFullValue) setFullValue({ mode: newMode, value: argValue });
   };
 
   const setBoth = (newMode: string, newArg: any) => {
-    setFullValue({ mode: newMode, value: newArg });
+    if (setFullValue) setFullValue({ mode: newMode, value: newArg });
   };
+
+  useEffect(() => {
+    if (!fullValue && optional && setFullValue) {
+      setArg(nullValue);
+    }
+  }, [fullValue, optional, setFullValue]);
 
   type Handles = {
     [key: string]: number;
@@ -113,7 +128,21 @@ function RenderArgument({
     }
   }, [mode]);
 
-  return (
+  return arg.type === "Option" ? (
+    <RenderArgument
+      arg={{
+        name: arg.name,
+        ty: (arg.ty as Option).inner,
+        type: (arg.ty as Option)._type,
+      }}
+      callUpdate={callUpdate}
+      argValue={fullValue}
+      setArg={setFullValue}
+      setNode={setNode}
+      idx={key}
+      optional={true}
+    />
+  ) : (
     <div className="flex flex-row space-x-2 items-center w-full" ref={ref}>
       <Segmented
         className="nodrag"
@@ -144,7 +173,10 @@ function RenderArgument({
           },
         ]}
       />
-      <Typography.Text tw="w-fit">{arg.name}</Typography.Text>
+      <Typography.Text tw="w-fit whitespace-nowrap">
+        {arg.name}
+        {!optional ? <span style={{ color: "red" }}>*</span> : null}
+      </Typography.Text>
       {(() => {
         switch (arg.type) {
           case "Choice":
@@ -177,8 +209,18 @@ function RenderArgument({
                 }}
               />
             );
-          case "String":
-            return (
+          case "String": {
+            return (arg.ty as BackendString).secret ? (
+              <Input.Password
+                tw="grow"
+                className="nodrag"
+                disabled={mode !== "node"}
+                value={argValue && argValue != nullValue ? argValue : undefined}
+                onChange={(e) => {
+                  setArg(e.target.value);
+                }}
+              />
+            ) : (
               <Input
                 tw="grow"
                 className="nodrag"
@@ -189,6 +231,7 @@ function RenderArgument({
                 }}
               />
             );
+          }
           case "Bool":
             return (
               <Switch
@@ -224,10 +267,12 @@ function BaseNode({
     ? (node.data as z.infer<typeof dataSchema>)
     : Array(node.metadata.args.length).fill(null);
 
+  const initialized = dataSchema
+    .length(node.metadata.args.length)
+    .safeParse(node.data).success;
+
   useEffect(() => {
-    if (
-      !dataSchema.length(node.metadata.args.length).safeParse(node.data).success
-    ) {
+    if (!initialized) {
       setNode((nd) => ({
         ...nd,
         data: Array(node.metadata.args.length).fill(null),
@@ -259,12 +304,16 @@ function BaseNode({
           callUpdate={callAfterUpdateInpOuts}
           argValue={data[idx]}
           setNode={setNode}
-          setArg={(newArg: any) => {
-            setNode((nd) => ({
-              ...nd,
-              data: nd.data.map((x, i) => (i === idx ? newArg : x)),
-            }));
-          }}
+          setArg={
+            initialized
+              ? (newArg: any) => {
+                  setNode((nd) => ({
+                    ...nd,
+                    data: nd.data.map((x, i) => (i === idx ? newArg : x)),
+                  }));
+                }
+              : undefined
+          }
         />
       ))}
     </div>

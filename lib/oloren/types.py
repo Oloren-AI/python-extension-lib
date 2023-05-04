@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Any
 
 try:
     from py_ts_interfaces import Interface
@@ -12,8 +12,8 @@ class Type(Interface):
     pass
 
 
-@dataclass(frozen=True)
-class Choice(str, Type):
+@dataclass
+class Choice(Type):
     """
     Choice: A class for defining a choice input.
 
@@ -32,8 +32,8 @@ class Choice(str, Type):
     choices: List[str]
 
 
-@dataclass(frozen=True)
-class Num(float, Type):
+@dataclass
+class Num(Type):
     """
     Represents a user input where they can provide a number, either floating or integer.
 
@@ -54,24 +54,27 @@ class Num(float, Type):
     max_value: Optional[float] = None
 
 
-@dataclass(frozen=True)
-class String(str, Type):
+@dataclass
+class String(Type):
     """
     String: A class for defining a string input.
 
     Represents a user input where they can provide a string.
 
+    Args:
+        secret (bool): Defaults to False. Whether the input should be rendered as a secure password field.
+
     Example::
 
-        @olo.register(description="Reverse a string.")
-        def reverse_string(text=olo.String()):
-            return text[::-1]
+        @olo.register(description="Call OpenAI GPT API")
+        def gpt_query(openaikey=olo.String(secret=True), query=olo.String()):
+            ...
     """
 
-    pass
+    secret: bool = False
 
 
-@dataclass(frozen=True)
+@dataclass
 class Bool(Type):
     """
     Bool: A class for defining a boolean input.
@@ -91,8 +94,8 @@ class Bool(Type):
     default: bool = False
 
 
-@dataclass(frozen=True)
-class File(str, Type):
+@dataclass
+class File(Type):
     """
     File: A class for defining a file input.
 
@@ -112,20 +115,48 @@ class File(str, Type):
     allowed_extensions: Optional[List[str]] = None
 
 
-@dataclass(frozen=True)
+@dataclass
+class Option(Type):
+    """
+    Option allows you to specify that a type is optional. Pass the type you want to be optional as the first argument.
+
+    If the user doesn't provide a value for the input, the value will be None, so you must handle this in your code.
+
+    Args:
+        wrapped (Any): Type to be made optional.
+        _type (Optional[str]): The type of the wrapped type. Will be automatically inferred, user specified
+        values will be ignored.
+
+    Example::
+
+        @olo.register()
+        def optional_input(optional=olo.Option(olo.Num())):
+            if optional is None:
+                return "You didn't provide a value for the optional input."
+            return f"You provided {optional} for the optional input."
+    """
+
+    inner: Union[Choice, Num, File, Bool, String]
+    _type: Optional[str] = None
+
+
+@dataclass
 class Ty(Interface):
     name: str
-    ty: Union[Choice, Num, File, Bool]
+    ty: Union[Choice, Num, File, Bool, String, Option]
     type: str
 
 
-@dataclass(frozen=True)
+@dataclass
 class Config(Interface):
     name: str
     description: Optional[str]
     args: List[Ty]
     operator: str
     num_outputs: int
+
+
+NULL_VALUE = "SPECIALNULLVALUEDONOTSETEVER"
 
 
 # get all subclasses of Type
@@ -135,9 +166,16 @@ if __name__ == "__main__":
     import sys
 
     path = sys.argv[1]
+
     with open(path, "r") as f:
         file = f.read()
+
     with open(path, "w") as f:
         replacement_type = " | ".join([f'"{x}"' for x in __all__])
-        # little hacky way of replacing the first instance of "type: string" with with correct string literal
-        f.write(file.replace("type: string", "type: " + replacement_type))
+        _replacement_type = " | ".join([f'"{x}"' for x in __all__ if x != "Option"])
+        f.write(
+            file.replace("_type: string | null", "_type: " + _replacement_type).replace(
+                "type: string", "type: " + replacement_type
+            )
+            + f'\nexport const nullValue = "{NULL_VALUE}";'
+        )

@@ -10,7 +10,7 @@ import io
 import os
 import inspect
 from dataclasses import asdict
-from .types import Type, Config, Ty
+from .types import NULL_VALUE, Type, Config, Ty, Option
 from typing import Dict, Tuple, Callable
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "static"))
@@ -56,6 +56,9 @@ def register(name="", description="", num_outputs=1):
                 raise TypeError("Default values for parameters must be literals.")
             if not isinstance(param.default, Type):
                 raise TypeError(f"Parameter {param.name} of function {func.__name__} has an invalid type.")
+
+            if isinstance(param.default, Option):
+                param.default._type = param.default.inner.__class__.__name__
 
             config.args.append(Ty(param.name, param.default, type=param.default.__class__.__name__))
 
@@ -114,8 +117,6 @@ def download_from_signed_url(signed_url):
 def execute_function(dispatcher_url, body, FUNCTION_NAME):
     cur_dir = os.getcwd()
     try:
-        # TODO: handle inputs in addition to simple body data
-
         inputs = [inp["value"] for inp in body["node"]["data"]]
 
         if "input_handles" in body["node"]:
@@ -125,6 +126,8 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
         for i, input in enumerate(inputs):  # convert file inputs into file paths
             if FUNCTIONS[FUNCTION_NAME][1].args[i].type == "File":
                 inputs[i] = download_from_signed_url(inputs[i]["url"])
+            if input == NULL_VALUE:
+                inputs[i] = None
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             os.chdir(tmp_dir)

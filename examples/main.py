@@ -25,6 +25,11 @@ def head(csv_file=olo.File(), rows=olo.Num()):
     return olo.OutputFile("head.csv")
 
 
+@olo.register(description="GPT Query")
+def gpt(openaikey=olo.String(secret=True), query=olo.Option(olo.String())):
+    return f"{query}"
+
+
 @olo.register()
 def boolean(b=olo.Bool()):
     return b
