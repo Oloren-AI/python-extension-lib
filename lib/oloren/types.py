@@ -124,8 +124,7 @@ class Option(Type):
 
     Args:
         wrapped (Any): Type to be made optional.
-        _type (Optional[str]): The type of the wrapped type. Will be automatically inferred, user specified
-        values will be ignored.
+        _type (Optional[str]): The type of the wrapped type. Will be automatically inferred, user specified values will be ignored.
 
     Example::
 
