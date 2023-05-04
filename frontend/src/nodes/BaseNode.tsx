@@ -212,17 +212,19 @@ function BaseNode({
     : Array(node.metadata.args.length).fill(null);
 
   useEffect(() => {
-    setNode((nd) => ({
-      ...nd,
-      data: Array(node.metadata.args.length).fill(null),
-      operator: `${baseUrl(node.remote.url)}/operator/${
-        node.metadata.operator
-      }`, // specify operator url as such
-      num_inputs: 0,
-      num_outputs: node.metadata.num_outputs,
-    }));
-    callAfterUpdateInpOuts();
-  }, []);
+    if(!dataSchema.length(node.metadata.args.length).safeParse(node.data).success){
+      setNode((nd) => ({
+        ...nd,
+        data: Array(node.metadata.args.length).fill(null),
+        operator: `${baseUrl(node.remote.url)}/operator/${
+          node.metadata.operator
+        }`, // specify operator url as such
+        num_inputs: 0,
+        num_outputs: node.metadata.num_outputs,
+      }));
+      callAfterUpdateInpOuts();
+    }
+  }, [node]);
 
   return (
     <div tw="flex flex-col space-y-2 w-96">

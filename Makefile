@@ -12,7 +12,8 @@ types:
 
 .PHONY: dev
 dev:
-	rm -rf lib/oloren/static ; ln -s ../frontend/dist lib/oloren/static
+	rm -rf lib/oloren/static
+	cd lib/oloren ; ln -s ../../frontend/dist static
 	cd frontend/ ; pnpm run dev
 
 .PHONY: build
