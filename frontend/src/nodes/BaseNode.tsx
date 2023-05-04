@@ -38,8 +38,8 @@ const nullValue = "SPECIALNULLVALUEDONOTSETEVER";
 function RenderArgument({
   arg,
   callUpdate,
-  argValue,
-  setArg,
+  argValue: fullValue,
+  setArg: setFullValue,
   setNode,
   idx: key,
 }: {
@@ -52,7 +52,20 @@ function RenderArgument({
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
-  const [mode, setMode] = useState("node");
+  const mode = fullValue ? fullValue["mode"] : "node";
+  const argValue = fullValue ? fullValue["value"] : fullValue;
+
+  const setArg = (newArg: any) => {
+    setFullValue({ mode, value: newArg });
+  };
+
+  const setMode = (newMode: string) => {
+    setFullValue({ mode: newMode, value: argValue });
+  };
+
+  const setBoth = (newMode: string, newArg: any) => {
+    setFullValue({ mode: newMode, value: newArg });
+  };
 
   type Handles = {
     [key: string]: number;
@@ -111,8 +124,8 @@ function RenderArgument({
         size={"small"}
         value={mode}
         onChange={(newMode) => {
-          setMode(newMode.toString());
-          if (newMode !== "node") setArg(nullValue);
+          if (newMode === "node") setMode(newMode.toString());
+          else setBoth(newMode.toString(), nullValue);
         }}
         options={[
           {
@@ -212,7 +225,9 @@ function BaseNode({
     : Array(node.metadata.args.length).fill(null);
 
   useEffect(() => {
-    if(!dataSchema.length(node.metadata.args.length).safeParse(node.data).success){
+    if (
+      !dataSchema.length(node.metadata.args.length).safeParse(node.data).success
+    ) {
       setNode((nd) => ({
         ...nd,
         data: Array(node.metadata.args.length).fill(null),

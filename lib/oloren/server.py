@@ -116,7 +116,7 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
     try:
         # TODO: handle inputs in addition to simple body data
 
-        inputs = body["node"]["data"]
+        inputs = [inp["value"] for inp in body["node"]["data"]]
 
         if "input_handles" in body["node"]:
             for input_idx, i in enumerate(sorted(body["node"]["input_handles"].keys())):
