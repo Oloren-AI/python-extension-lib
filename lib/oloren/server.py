@@ -238,6 +238,10 @@ def run(name: str, port=4823):
 
     global EXTENSION_NAME
     EXTENSION_NAME = name.replace(" ", "").replace("-", "_")
+
+    if len(FUNCTIONS) == 0:
+        raise ValueError("You must register at least one function with @olo.register.")
+
     port = 80 if os.getenv("MODE") == "PROD" else port
     app.run(host="0.0.0.0", port=port, debug=(os.getenv("MODE") != "PROD"))
 
