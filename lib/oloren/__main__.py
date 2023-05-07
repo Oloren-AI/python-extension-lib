@@ -31,7 +31,7 @@ def run():
         with open(args.script, "a") as f:
             f.write("\n" + handler_source)
     elif "MODE" in os.environ and os.environ["MODE"] == "LAMBDA":
-        subprocess.run([sys.executable, "-m", "awslambdaric", args.script.replace(".py", "handler")], cwd=app_root)
+        subprocess.run([sys.executable, "-m", "awslambdaric", args.script.replace(".py", ".handler")], cwd=app_root)
     else:
         subprocess.run([sys.executable, args.script], cwd=app_root)
 
