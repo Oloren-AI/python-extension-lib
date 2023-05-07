@@ -239,7 +239,7 @@ def run(name: str, port=4823):
         buildcopy = os.path.join(os.getenv("BUILDCOPY"), "ui")
 
         remote_entry_path = os.path.abspath(os.path.join(buildcopy, "remoteEntry.js"))
-        directory_path = os.path.abspath(os.path.join(buildcopy, "directory"))
+        directory_path = os.path.abspath(os.path.join(buildcopy, "../directory"))
 
         shutil.copytree(os.path.join(os.path.dirname(__file__), "static"), buildcopy, dirs_exist_ok=True)
 
