@@ -243,8 +243,9 @@ def run(name: str, port=4823):
 
         shutil.copytree(os.path.join(os.path.dirname(__file__), "static"), buildcopy, dirs_exist_ok=True)
 
+        remote = process_remoteentry(remote_entry_path)
         with open(remote_entry_path, "w") as file:
-            file.write(process_remoteentry(remote_entry_path))
+            file.write(remote)
 
         with open(directory_path, "w") as file:
             file.write(json.dumps(get_directory_json()))
