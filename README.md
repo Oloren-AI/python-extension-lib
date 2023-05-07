@@ -52,3 +52,7 @@ if __name__ == "__main__":
 The key requirements are that each argument of your function has a default value that is set to one of the special
 Oloren types. These types subclass their relevant returned data types (e.g. string, int, float) so your autocomplete
 will work as normal.
+
+#### Documentation
+
+https://oloren-ai.github.io/python-extension-lib/index.html
