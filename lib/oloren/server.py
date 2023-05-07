@@ -44,7 +44,7 @@ def register(name="", description="", num_outputs=1):
         signature = inspect.signature(func)
 
         config = Config(
-            name=name if name != "" else func.__name__,
+            name=name if name != "" else func.__name__.replace("_", " ").title(),
             args=[],
             operator=func.__name__,
             num_outputs=num_outputs,
@@ -74,16 +74,21 @@ def health_check():
     return "OK"
 
 
+def replace_last_instance(text, word_to_replace, replacement):
+    index = text.rfind(word_to_replace)
+    if index != -1:
+        return text[:index] + replacement + text[index + len(word_to_replace) :]
+    return text
+
+
 @app.route("/ui/<path:path>")
 def serve_static_files(path):
     if path.endswith("remoteEntry.js"):
         with open(os.path.join(app.static_folder, path), "r") as file:
             content = file.read()
-            new_content = (
-                content.replace("var EXTENSIONNAME;", f"var {EXTENSION_NAME};")
-                .replace("EXTENSIONNAME = __webpack_exports__;", f"{EXTENSION_NAME} = __webpack_exports__;")
-                .replace("EXTENSIONNAME=m", f"{EXTENSION_NAME}=m")  # for the built version
-            )
+            new_content = content.replace("var EXTENSIONNAME;", f"var {EXTENSION_NAME};")
+            new_content = replace_last_instance(new_content, "EXTENSIONNAME", EXTENSION_NAME)
+
         return Response(new_content, content_type="application/javascript")
 
     return send_from_directory(app.static_folder, path)
@@ -104,6 +109,23 @@ def get_directory():
             ]
         }
     )
+
+
+SECRETS = {}
+
+
+@app.route("/reset_secrets", methods=["POST"])
+def reset_secrets():
+    global SECRETS
+    SECRETS = {}
+    return jsonify("ok")
+
+
+def secret(name):
+    global SECRETS
+
+    if name not in SECRETS:
+        request
 
 
 def download_from_signed_url(signed_url):
@@ -179,6 +201,8 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
 # Replace this with a loop over your FUNCTIONS
 @app.route("/operator/<FUNCTION_NAME>", methods=["POST"])
 def operator(FUNCTION_NAME):
+    global dispatcher_url
+
     body = request.json
     body["node"]
     body["inputs"]
@@ -191,6 +215,7 @@ def operator(FUNCTION_NAME):
 
     response = jsonify("Ok")
     response.status_code = 200
+
     return response
 
 
