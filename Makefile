@@ -23,6 +23,13 @@ build:
 	rsync -av --delete --delete-excluded --exclude=reports \
 		frontend/dist/ lib/oloren/static/
 
+.PHONY: testpypi
+testpypi:
+	make clean
+	make build
+	cd lib/ ; python setup.py sdist bdist_wheel
+	cd lib/ ; twine upload  --repository testpypi dist/*
+
 .PHONY: pypi
 pypi:
 	make clean

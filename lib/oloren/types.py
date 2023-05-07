@@ -164,12 +164,12 @@ __all__ = [subclass.__name__ for subclass in Type.__subclasses__()]
 if __name__ == "__main__":
     import sys
 
-    path = sys.argv[1]
+    remote_entry_path = sys.argv[1]
 
-    with open(path, "r") as f:
+    with open(remote_entry_path, "r") as f:
         file = f.read()
 
-    with open(path, "w") as f:
+    with open(remote_entry_path, "w") as f:
         replacement_type = " | ".join([f'"{x}"' for x in __all__])
         _replacement_type = " | ".join([f'"{x}"' for x in __all__ if x != "Option"])
         f.write(
