@@ -2,10 +2,12 @@ import {
   Button,
   Input,
   InputNumber,
+  Popover,
   Radio,
   Segmented,
   Select,
   Switch,
+  Tooltip,
   Typography,
   Upload,
 } from "antd";
@@ -158,16 +160,28 @@ function RenderArgument({
         }}
         options={[
           {
-            icon: <LoginOutlined tw="pt-[3px]" />,
+            label: (
+              <Tooltip title="External Input">
+                <LoginOutlined tw="pt-[3px]" />
+              </Tooltip>
+            ),
             value: "input",
           },
           {
-            icon: <PlayCircleOutlined tw="pt-[3px]" />,
+            label: (
+              <Tooltip title="UI Popup">
+                <PlayCircleOutlined tw="pt-[3px]" />
+              </Tooltip>
+            ),
             value: "ui",
             disabled: true,
           },
           {
-            icon: <PicCenterOutlined tw="pt-[3px]" />,
+            label: (
+              <Tooltip title="Hardcode">
+                <PicCenterOutlined tw="pt-[3px]" />
+              </Tooltip>
+            ),
             value: "node",
             disabled: arg.type === "File",
           },
