@@ -250,6 +250,7 @@ def run(name: str, port=4823):
             file.write(json.dumps(get_directory_json()))
 
         print("Done.")
+        return
 
     if os.getenv("MODE") == "LAMBDA":
         return
