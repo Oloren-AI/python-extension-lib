@@ -63,7 +63,11 @@ function RenderArgument({
 }: RenderArgumentProps) {
   const ref = useRef<HTMLDivElement>(null);
 
-  const mode = fullValue ? fullValue["mode"] : "node";
+  const mode = fullValue
+    ? fullValue["mode"]
+    : arg.type === "File"
+    ? "input"
+    : "node";
   const argValue = fullValue ? fullValue["value"] : fullValue;
 
   const setArg = (newArg: any) => {
