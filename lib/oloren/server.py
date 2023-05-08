@@ -147,65 +147,47 @@ def download_from_signed_url(signed_url):
 
 
 def execute_function(dispatcher_url, body, FUNCTION_NAME):
-    cur_dir = os.getcwd()
-    try:
-        inputs = [inp["value"] for inp in body["node"]["data"]]
+    inputs = [inp["value"] for inp in body["node"]["data"]]
 
-        if "input_handles" in body["node"]:
-            for input_idx, i in enumerate(sorted(body["node"]["input_handles"].keys())):
-                inputs[int(i)] = body["inputs"][input_idx]
+    if "input_handles" in body["node"]:
+        for input_idx, i in enumerate(sorted(body["node"]["input_handles"].keys())):
+            inputs[int(i)] = body["inputs"][input_idx]
 
-        for i, input in enumerate(inputs):  # convert file inputs into file paths
-            if FUNCTIONS[FUNCTION_NAME][1].args[i].type == "File":
-                inputs[i] = download_from_signed_url(inputs[i]["url"])
-            if input == NULL_VALUE:
-                inputs[i] = None
+    for i, input in enumerate(inputs):  # convert file inputs into file paths
+        if FUNCTIONS[FUNCTION_NAME][1].args[i].type == "File":
+            inputs[i] = download_from_signed_url(inputs[i]["url"])
+        if input == NULL_VALUE:
+            inputs[i] = None
 
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            os.chdir(tmp_dir)
+    outputs = FUNCTIONS[FUNCTION_NAME][0](*inputs)
 
-            outputs = FUNCTIONS[FUNCTION_NAME][0](*inputs)
+    if isinstance(outputs, tuple):
+        outputs = list(outputs)
+    else:
+        outputs = [outputs]
 
-            if isinstance(outputs, tuple):
-                outputs = list(outputs)
-            else:
-                outputs = [outputs]
+    # Convert output files
+    for i, output in enumerate(outputs):
+        if isinstance(output, OutputFile):
+            with open(output.path, "rb") as file:
+                outputs[i] = io.BytesIO(file.read())
 
-            # Convert output files
-            for i, output in enumerate(outputs):
-                if isinstance(output, OutputFile):
-                    with open(output.path, "rb") as file:
-                        outputs[i] = io.BytesIO(file.read())
+    files = {i: output for i, output in enumerate(outputs) if isinstance(output, io.BytesIO)}
+    if len(files) > 0:
+        form_data = {
+            "node": body["id"],
+            "output": json.dumps([output if not isinstance(output, io.BytesIO) else "" for output in outputs]),
+        }
 
-            files = {i: output for i, output in enumerate(outputs) if isinstance(output, io.BytesIO)}
-            if len(files) > 0:
-                form_data = {
-                    "node": body["id"],
-                    "output": json.dumps([output if not isinstance(output, io.BytesIO) else "" for output in outputs]),
-                }
+        files = {str(i): f for i, f in enumerate(outputs) if isinstance(f, io.BytesIO)}
 
-                files = {str(i): f for i, f in enumerate(outputs) if isinstance(f, io.BytesIO)}
-
-                response = requests.post(f"{dispatcher_url}/node_finished_file", data=form_data, files=files)
-            else:
-                response = requests.post(
-                    f"{dispatcher_url}/node_finished",
-                    headers={"Content-Type": "application/json"},
-                    json={"node": body["id"], "output": [output for output in outputs]},
-                )
-
-    except Exception:
-        error_msg = traceback.format_exc()
-        requests.post(
-            f"{dispatcher_url}/node_error",
+        response = requests.post(f"{dispatcher_url}/node_finished_file", data=form_data, files=files)
+    else:
+        response = requests.post(
+            f"{dispatcher_url}/node_finished",
             headers={"Content-Type": "application/json"},
-            json={
-                "node": body["id"],
-                "error": error_msg,
-            },
+            json={"node": body["id"], "output": [output for output in outputs]},
         )
-    finally:
-        os.chdir(cur_dir)
 
 
 def run(name: str, port=4823):
@@ -275,11 +257,13 @@ def handler(event, context):
             return olo.handler(event, context)
     """
 
-    dispatcher_url = event.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
-
-    execute_function(dispatcher_url, event, event["node"]["function"])
+    body = json.loads(event["body"])
+    dispatcher_url = body.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
+    execute_function(dispatcher_url, body, body["node"]["function"])
 
     return "Ok"
+
+    # return "Ok"
 
 
 __all__ = ["register", "run", "handler"]
