@@ -36,3 +36,5 @@ To package your extension and prepare it for deployment on Oloren Orchestrator y
     | 4096 (4 vCPU)  | Between 8 GB and 30 GB in 1 GB increments   |
     | 8192 (8 vCPU)  | Between 16 GB and 60 GB in 4 GB increments  |
     | 16384 (16vCPU) | Between 32 GB and 120 GB in 8 GB increments |
+
+Once all the criteria are satisfied, go to the Developer tab in Orchestrator and use your github access token and repo link to build the extension.
