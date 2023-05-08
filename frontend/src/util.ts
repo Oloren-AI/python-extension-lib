@@ -1,4 +1,5 @@
 import { Config } from "./backend";
+import { z } from "zod";
 
 export type Json = string | number | boolean | Json[] | { [key: string]: Json };
 
@@ -37,3 +38,36 @@ export function baseUrl(url: string) {
   const host = pathArray[2];
   return protocol + "//" + host;
 }
+
+// GRAPH Types
+
+// Non Null JSON
+const literalSchema = z.union([z.string(), z.number(), z.boolean()]);
+type Literal = z.infer<typeof literalSchema>;
+export const cloneJson = (json: Json): Json => JSON.parse(JSON.stringify(json));
+
+export const jsonSchema: z.ZodType<Json> = z.lazy(() =>
+  z.union([literalSchema, z.array(jsonSchema), z.record(jsonSchema)])
+);
+
+// Entry
+export const entrySchema = z.object({
+  id: z.number(),
+  name: z.string().optional(),
+  description: z.string().optional(),
+});
+
+export type Entry = z.infer<typeof entrySchema>;
+
+// Node
+export const nodeSchema = z.object({
+  id: z.string(),
+  operator: z.string(),
+  input_ids: z.array(entrySchema),
+  output_ids: z.array(entrySchema),
+  data: jsonSchema,
+  name: z.string().optional(),
+  description: z.string().optional(),
+});
+
+export type Node = z.infer<typeof nodeSchema>;

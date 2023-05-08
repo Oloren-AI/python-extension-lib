@@ -19,6 +19,7 @@ import {
   type FlowNodeData,
   type Json,
   type NodeProps,
+  type Node
 } from "../util";
 import {
   UploadOutlined,
@@ -39,6 +40,8 @@ import {
   String as BackendString,
   nullValue,
 } from "../backend";
+// import uuid
+import { v4 as uuidv4 } from "uuid";
 
 const dataSchema = z.array(z.any());
 
@@ -178,7 +181,6 @@ function RenderArgument({
               </Tooltip>
             ),
             value: "ui",
-            disabled: true,
           },
           {
             label: (
@@ -289,20 +291,21 @@ function BaseNode({
     .length(node.metadata.args.length)
     .safeParse(node.data).success;
 
+  const [operatorNode, setOperatorNode] = useState<Node | null>(null);
+
   useEffect(() => {
     if (!initialized) {
-      setNode((nd) => ({
-        ...nd,
-        data: Array(node.metadata.args.length).fill(null),
+      setOperatorNode({
+        id: uuidv4(),
         operator: `${baseUrl(node.remote.url)}/operator/${
           node.metadata.operator
         }`, // specify operator url as such
-        num_inputs: 0,
-        num_outputs: node.metadata.num_outputs,
-      }));
-      callAfterUpdateInpOuts();
+        input_ids : [],
+        output_ids: [],
+        data: Array(node.metadata.args.length).fill(null)
+      })
     }
-  }, [node]);
+  }, [operatorNode]);
 
   return (
     <div tw="flex flex-col space-y-2 w-96">
