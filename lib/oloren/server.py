@@ -125,6 +125,7 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
 
         for i, input in enumerate(inputs):  # convert file inputs into file paths
             if FUNCTIONS[FUNCTION_NAME][1].args[i].type == "File":
+                assert isinstance(input, dict) and "url" in input, "File inputs must be signed URLs. The error is most likely caused by mapping a non-file input to a file input."
                 inputs[i] = download_from_signed_url(inputs[i]["url"])
             if input == NULL_VALUE:
                 inputs[i] = None
