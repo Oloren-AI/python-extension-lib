@@ -285,7 +285,7 @@ function BaseNode({
   setNode,
 }: NodeProps<z.infer<typeof dataSchema>>) {
 
-
+  // initialize operator node
   useEffect(() => {
     if (!node.data?.operatorNode) {
       const newOpNode = {
@@ -306,6 +306,55 @@ function BaseNode({
         }
       }))
     }
+  }, [node]);
+
+  const [lastData, setLastData] = useState<any>(null);
+  // set graph based on operator node
+  useEffect(() => {
+    // if operator node is not set, do nothing
+    if (!node.data?.operatorNode) return;
+    
+    // if the operator node has not changed, do nothing (check contents)
+    if (JSON.stringify(node.data.operatorNode) === JSON.stringify(lastData)) return;
+
+    // if the operator node has changed, update the graph
+    setLastData(node.data.operatorNode);
+
+    // newGraph as Array of Node
+    let newGraph: Node[] = [];
+    for(let i = 0; i < node.num_inputs; i++) {
+      newGraph.push({
+        id: node.id + "-input-" + i,
+        operator: "proxyinnode",
+        data: {index: i},
+        input_ids: [],
+        output_ids: [{id: i}]
+      })
+    }
+
+    let newOperatorNode = node.data.operatorNode;
+    newOperatorNode.input_ids = Array(node.num_inputs).fill(null).map((_, i) => {id: i});
+    newOperatorNode.output_ids = Array(node.num_outputs).fill(null).map((_, i) => {id: i + node.num_inputs});
+    newGraph.push(newOperatorNode);
+
+    for(let i = 0; i < node.num_outputs; i++) {
+      newGraph.push({
+        id: node.id + "-output-" + i,
+        operator: "proxyoutnode",
+        data: {index: i + node.num_inputs + 1},
+        input_ids: [{id: i + node.num_inputs}],
+        output_ids: []
+      })
+    }
+
+
+    setNode((nd) => ({
+      ...nd,
+      data: {
+        ...nd.data,
+        graph: newGraph
+      }
+    }))
   }, [node]);
 
   return (
