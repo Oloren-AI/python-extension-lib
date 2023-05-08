@@ -12,4 +12,5 @@
    core.md
    types.md
    packaging.md
+   common_errors.md
 ```
