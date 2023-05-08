@@ -2,7 +2,7 @@
 
 Let's get started building extensions. 
 
-# Setting Up Your Python Development Environment
+## Setting Up Your Python Development Environment
 
 Each extension should be in it's own github repository. Make sure you have the oloren package installed by running ` pip install oloren`. 
 
@@ -19,7 +19,7 @@ Running `python app.py` launches your application on port 5829.
 
 Now in the orchestrator app, using the add plugin bottom (bottom left cloud icon in graph editor), you can add this extension by adding `localhost:5829`.
 
-# Editing
+## Editing
 
 When making changes to your `app.py` file, make sure you reload the Orchestrator app. There's a few ways to do this: 
 
@@ -29,7 +29,7 @@ When making changes to your `app.py` file, make sure you reload the Orchestrator
 
 Generally removing and readding the localhost extension works well, especially when making changes to any Orchestrator functions.
 
-# Deployment
+## Deployment
 
 In order to deploy your extension, it must be packaged correctly. The dependencies should be put in a `requirements.txt` file, and your repository must contain a docker file that installs all the requirements and runs the extension. Here's an example docker file: 
 
