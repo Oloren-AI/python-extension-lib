@@ -162,6 +162,7 @@ function RenderArgument({
         size={"small"}
         value={mode}
         onChange={(newMode) => {
+          console.log(newMode)
           if (newMode === "node") setMode(newMode.toString());
           else setBoth(newMode.toString(), nullValue);
         }}
@@ -283,19 +284,11 @@ function BaseNode({
   node,
   setNode,
 }: NodeProps<z.infer<typeof dataSchema>>) {
-  const data = dataSchema.safeParse(node.data).success
-    ? (node.data as z.infer<typeof dataSchema>)
-    : Array(node.metadata.args.length).fill(null);
 
-  const initialized = dataSchema
-    .length(node.metadata.args.length)
-    .safeParse(node.data).success;
-
-  const [operatorNode, setOperatorNode] = useState<Node | null>(null);
 
   useEffect(() => {
-    if (!initialized) {
-      setOperatorNode({
+    if (!node.data?.operatorNode) {
+      const newOpNode = {
         id: uuidv4(),
         operator: `${baseUrl(node.remote.url)}/operator/${
           node.metadata.operator
@@ -303,9 +296,17 @@ function BaseNode({
         input_ids : [],
         output_ids: [],
         data: Array(node.metadata.args.length).fill(null)
-      })
+      }
+
+      setNode((nd) => ({
+        ...nd,
+        data: {
+          ...nd.data,
+          operatorNode: newOpNode
+        }
+      }))
     }
-  }, [operatorNode]);
+  }, [node]);
 
   return (
     <div tw="flex flex-col space-y-2 w-96">
@@ -323,17 +324,26 @@ function BaseNode({
           key={idx}
           idx={idx}
           callUpdate={callAfterUpdateInpOuts}
-          argValue={data[idx]}
+          argValue={node.data.operatorNode?.data[idx]}
           setNode={setNode}
           setArg={
-            initialized
+            node.data?.operatorNode
               ? (newArg: any) => {
+                  console.log("set arg", newArg);
                   setNode((nd) => ({
                     ...nd,
-                    data: nd.data.map((x, i) => (i === idx ? newArg : x)),
+                    data: {
+                      ...nd.data,
+                      operatorNode: {
+                        ...nd.data.operatorNode,
+                        data: nd.data.operatorNode.data.map((x, i) =>
+                          i === idx ? newArg : x
+                        ),
+                      },
+                    },
                   }));
                 }
-              : undefined
+              : (newArg: any) => { console.log("not initialized"); }
           }
         />
       ))}
