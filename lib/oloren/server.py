@@ -259,7 +259,8 @@ def handler(event, context):
 
     body = json.loads(event["body"])
     dispatcher_url = body.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
-    execute_function(dispatcher_url, body, body["node"]["function"])
+
+    execute_function(dispatcher_url, body, body["node"]["metadata"]["operator"])
 
     return "Ok"
 
