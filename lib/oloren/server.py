@@ -81,51 +81,61 @@ def replace_last_instance(text, word_to_replace, replacement):
     return text
 
 
+def process_remoteentry(path):
+    with open(os.path.join(app.static_folder, path), "r") as file:
+        content = file.read()
+        new_content = content.replace("var EXTENSIONNAME;", f"var {EXTENSION_NAME};")
+        new_content = replace_last_instance(new_content, "EXTENSIONNAME", EXTENSION_NAME)
+    return new_content
+
+
 @app.route("/ui/<path:path>")
 def serve_static_files(path):
     if path.endswith("remoteEntry.js"):
-        with open(os.path.join(app.static_folder, path), "r") as file:
-            content = file.read()
-            new_content = content.replace("var EXTENSIONNAME;", f"var {EXTENSION_NAME};")
-            new_content = replace_last_instance(new_content, "EXTENSIONNAME", EXTENSION_NAME)
-
+        new_content = process_remoteentry(path)
         return Response(new_content, content_type="application/javascript")
 
     return send_from_directory(app.static_folder, path)
 
 
+def get_directory_json():
+    return {
+        "nodes": [
+            {
+                "module": "Base Node",
+                "scope": EXTENSION_NAME,
+                "url": "/ui/remoteEntry.js",
+                "metadata": asdict(function[1]),
+            }
+            for name, function in FUNCTIONS.items()
+        ]
+    }
+
+
 @app.route("/directory", methods=["GET"])
 def get_directory():
-    return jsonify(
-        {
-            "nodes": [
-                {
-                    "module": "Base Node",
-                    "scope": EXTENSION_NAME,
-                    "url": "/ui/remoteEntry.js",
-                    "metadata": asdict(function[1]),
-                }
-                for name, function in FUNCTIONS.items()
-            ]
-        }
-    )
+    return jsonify(get_directory_json())
 
 
-SECRETS = {}
+# Replace this with a loop over your FUNCTIONS
+@app.route("/operator/<FUNCTION_NAME>", methods=["POST"])
+def operator(FUNCTION_NAME):
+    global dispatcher_url
 
+    body = request.json
+    body["node"]
+    body["inputs"]
+    body["id"]
 
-@app.route("/reset_secrets", methods=["POST"])
-def reset_secrets():
-    global SECRETS
-    SECRETS = {}
-    return jsonify("ok")
+    dispatcher_url = body.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
 
+    t = threading.Thread(target=execute_function, args=(dispatcher_url, body, FUNCTION_NAME))
+    t.start()
 
-def secret(name):
-    global SECRETS
+    response = jsonify("Ok")
+    response.status_code = 200
 
-    if name not in SECRETS:
-        request
+    return response
 
 
 def download_from_signed_url(signed_url):
@@ -147,7 +157,9 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
 
         for i, input in enumerate(inputs):  # convert file inputs into file paths
             if FUNCTIONS[FUNCTION_NAME][1].args[i].type == "File":
-                assert isinstance(input, dict) and "url" in input, "File inputs must be signed URLs. The error is most likely caused by mapping a non-file input to a file input."
+                assert (
+                    isinstance(input, dict) and "url" in input
+                ), "File inputs must be signed URLs. The error is most likely caused by mapping a non-file input to a file input."
                 inputs[i] = download_from_signed_url(inputs[i]["url"])
             if input == NULL_VALUE:
                 inputs[i] = None
@@ -199,27 +211,6 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
         os.chdir(cur_dir)
 
 
-# Replace this with a loop over your FUNCTIONS
-@app.route("/operator/<FUNCTION_NAME>", methods=["POST"])
-def operator(FUNCTION_NAME):
-    global dispatcher_url
-
-    body = request.json
-    body["node"]
-    body["inputs"]
-    body["id"]
-
-    dispatcher_url = body.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
-
-    t = threading.Thread(target=execute_function, args=(dispatcher_url, body, FUNCTION_NAME))
-    t.start()
-
-    response = jsonify("Ok")
-    response.status_code = 200
-
-    return response
-
-
 def run(name: str, port=4823):
     """Runs the extension. Launches a HTTP server at the specified port for development and port 80 for production.
 
@@ -243,8 +234,56 @@ def run(name: str, port=4823):
     if len(FUNCTIONS) == 0:
         raise ValueError("You must register at least one function with @olo.register.")
 
+    if os.getenv("BUILDCOPY") is not None:
+        print("Copying static files...")
+
+        import shutil
+
+        buildcopy = os.path.join(os.getenv("BUILDCOPY"), "ui")
+
+        remote_entry_path = os.path.abspath(os.path.join(buildcopy, "remoteEntry.js"))
+        directory_path = os.path.abspath(os.path.join(buildcopy, "../directory"))
+
+        shutil.copytree(os.path.join(os.path.dirname(__file__), "static"), buildcopy, dirs_exist_ok=True)
+
+        remote = process_remoteentry(remote_entry_path)
+        with open(remote_entry_path, "w") as file:
+            file.write(remote)
+
+        with open(directory_path, "w") as file:
+            file.write(json.dumps(get_directory_json()))
+
+        print("Done.")
+        return
+
+    if os.getenv("MODE") == "LAMBDA":
+        return
+
     port = 80 if os.getenv("MODE") == "PROD" else port
     app.run(host="0.0.0.0", port=port, debug=(os.getenv("MODE") != "PROD"))
 
 
-__all__ = ["register", "run"]
+def handler(event, context):
+    """Handler for AWS Lambda.
+
+    The handler will be automatically inserted in the main file when deploying to AWS Lambda.
+
+    Args:
+        event (dict): The event object.
+        context (dict): The context object.
+
+    Example::
+
+        def handler(event, context):
+            return olo.handler(event, context)
+    """
+
+    body = json.loads(event["body"])
+    dispatcher_url = body.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
+
+    execute_function(dispatcher_url, body, body["node"]["metadata"]["operator"])
+
+    return "Ok"
+
+
+__all__ = ["register", "run", "handler"]
