@@ -12,6 +12,7 @@ types:
 
 .PHONY: dev
 dev:
+	pip install -e lib
 	rm -rf lib/oloren/static
 	cd lib/oloren ; ln -s ../../frontend/dist static
 	cd frontend/ ; pnpm run dev
