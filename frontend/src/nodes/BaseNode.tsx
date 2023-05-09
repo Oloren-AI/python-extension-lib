@@ -16,6 +16,8 @@ import { z } from "zod";
 import {
   baseUrl,
   NodeSetter,
+  graphSchema,
+  graphNodeSchema,
   type FlowNodeData,
   type Json,
   type NodeProps,
@@ -69,8 +71,8 @@ function RenderArgument({
   const mode = fullValue
     ? fullValue["mode"]
     : arg.type === "File"
-    ? "input"
-    : "node";
+      ? "input"
+      : "node";
   const argValue = fullValue ? fullValue["value"] : fullValue;
 
   const setArg = (newArg: any) => {
@@ -280,83 +282,101 @@ function RenderArgument({
 }
 
 function BaseNode({
-  callAfterUpdateInpOuts = () => {},
+  callAfterUpdateInpOuts = () => { },
   node,
   setNode,
 }: NodeProps<z.infer<typeof dataSchema>>) {
+  console.log("BaseNode !!!", node)
+  const [initialized, setInitialized] = useState(false);
 
-  // initialize operator node
   useEffect(() => {
-    if (!node.data?.operatorNode) {
+    console.log("BaseNode init")
+    // check if node.data.data.operatorNode exists safely
+    if (!node.data?.data?.operatorNode) {
+      console.log("No op node")
       const newOpNode = {
         id: uuidv4(),
-        operator: `${baseUrl(node.remote.url)}/operator/${
-          node.metadata.operator
-        }`, // specify operator url as such
-        input_ids : [],
+        operator: `${baseUrl(node.remote.url)}/operator/${node.metadata.operator
+          }`, // specify operator url as such
+        input_ids: [],
         output_ids: [],
         data: Array(node.metadata.args.length).fill(null)
       }
 
       setNode((nd) => ({
         ...nd,
+        operator: "graph", // specify operator url as such
+        num_inputs: 0,
+        num_outputs: node.metadata.num_outputs,
         data: {
-          ...nd.data,
-          operatorNode: newOpNode
+          data: {
+            ...nd.data,
+            operatorNode: newOpNode
+          },
+          graph: []
         }
-      }))
+      }));
     }
-  }, [node]);
+    setInitialized(true);
+    console.log("BaseNode initialized")
+  }, [node, initialized, setInitialized]);
 
   const [lastData, setLastData] = useState<any>(null);
   // set graph based on operator node
   useEffect(() => {
-    // if operator node is not set, do nothing
-    if (!node.data?.operatorNode) return;
-    
-    // if the operator node has not changed, do nothing (check contents)
-    if (JSON.stringify(node.data.operatorNode) === JSON.stringify(lastData)) return;
+    if (initialized) {
+      console.log("BaseNode changed")
+      // if operator node is not set, do nothing
+      if (!node.data.data.operatorNode) return;
 
-    // if the operator node has changed, update the graph
-    setLastData(node.data.operatorNode);
+      // if the operator node has not changed, do nothing (check contents)
+      if (JSON.stringify(node.data.data.operatorNode) === JSON.stringify(lastData)) return;
 
-    // newGraph as Array of Node
-    let newGraph: Node[] = [];
-    for(let i = 0; i < node.num_inputs; i++) {
-      newGraph.push({
-        id: node.id + "-input-" + i,
-        operator: "proxyinnode",
-        data: {index: i},
-        input_ids: [],
-        output_ids: [{id: i}]
-      })
-    }
+      // if the operator node has changed, update the graph
+      setLastData(node.data.data.operatorNode);
 
-    let newOperatorNode = node.data.operatorNode;
-    newOperatorNode.input_ids = Array(node.num_inputs).fill(null).map((_, i) => {id: i});
-    newOperatorNode.output_ids = Array(node.num_outputs).fill(null).map((_, i) => {id: i + node.num_inputs});
-    newGraph.push(newOperatorNode);
-
-    for(let i = 0; i < node.num_outputs; i++) {
-      newGraph.push({
-        id: node.id + "-output-" + i,
-        operator: "proxyoutnode",
-        data: {index: i + node.num_inputs + 1},
-        input_ids: [{id: i + node.num_inputs}],
-        output_ids: []
-      })
-    }
-
-
-    setNode((nd) => ({
-      ...nd,
-      data: {
-        ...nd.data,
-        graph: newGraph
+      // newGraph as Array of Node
+      let newGraph: Node[] = [];
+      for (let i = 0; i < node.num_inputs; i++) {
+        newGraph.push({
+          id: node.id + "-input-" + i,
+          operator: "proxyinnode",
+          data: { index: i },
+          input_ids: [],
+          output_ids: [{ id: i }]
+        })
       }
-    }))
-  }, [node]);
 
+      let newOperatorNode = node.data.data.operatorNode;
+      newOperatorNode.input_ids = Array(node.num_inputs).fill(null).map((_, i) => { return { "id": i } });
+      newOperatorNode.output_ids = Array(node.num_outputs).fill(null).map((_, i) => { return { "id": i + node.num_inputs } });
+      newGraph.push(newOperatorNode);
+
+      for (let i = 0; i < node.num_outputs; i++) {
+        newGraph.push({
+          id: node.id + "-output-" + i,
+          operator: "proxyoutnode",
+          data: { index: i + node.num_inputs + 1 },
+          input_ids: [{ id: i + node.num_inputs }],
+          output_ids: []
+        })
+      }
+
+      const newNode = {
+        ...node,
+        data: {
+          graph: newGraph,
+          data: {
+            operatorNode: node.data.data.operatorNode
+          }
+        },
+      }
+      setNode((nd) => { return newNode })
+    }
+  }, [node, initialized]);
+  if (!initialized) {
+    return null;
+  }
   return (
     <div tw="flex flex-col space-y-2 w-96">
       {node.metadata.name ? (
@@ -373,25 +393,25 @@ function BaseNode({
           key={idx}
           idx={idx}
           callUpdate={callAfterUpdateInpOuts}
-          argValue={node.data.operatorNode?.data[idx]}
+          argValue={node.data.data.operatorNode?.data[idx]}
           setNode={setNode}
           setArg={
-            node.data?.operatorNode
+            node.data.data.operatorNode
               ? (newArg: any) => {
-                  console.log("set arg", newArg);
-                  setNode((nd) => ({
-                    ...nd,
-                    data: {
-                      ...nd.data,
-                      operatorNode: {
-                        ...nd.data.operatorNode,
-                        data: nd.data.operatorNode.data.map((x, i) =>
-                          i === idx ? newArg : x
-                        ),
-                      },
+                console.log("set arg", newArg);
+                setNode((nd) => ({
+                  ...nd,
+                  data: {
+                    ...nd.data,
+                    operatorNode: {
+                      ...nd.data.data.operatorNode,
+                      data: nd.data.data.operatorNode.data.map((x, i) =>
+                        i === idx ? newArg : x
+                      ),
                     },
-                  }));
-                }
+                  },
+                }));
+              }
               : (newArg: any) => { console.log("not initialized"); }
           }
         />

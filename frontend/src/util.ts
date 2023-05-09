@@ -71,3 +71,16 @@ export const nodeSchema = z.object({
 });
 
 export type Node = z.infer<typeof nodeSchema>;
+
+
+export const graphSchema = z.array(nodeSchema);
+
+export const graphNodeSchema = nodeSchema.extend({
+  operator: z.enum(["graph"]),
+  data: z.object({
+    graph: graphSchema,
+    data: jsonSchema,
+  }),
+});
+
+export type GraphNode = z.infer<typeof graphNodeSchema>;
