@@ -8,7 +8,7 @@ with open(path, "r") as file:
 
 setup(
     name="oloren",
-    version="0.0.24",
+    version="0.0.10a1",
     packages=find_packages(exclude=("examples", "frontend")),
     python_requires=">=3.6",
     install_requires=["flask", "flask_cors", "requests"],
