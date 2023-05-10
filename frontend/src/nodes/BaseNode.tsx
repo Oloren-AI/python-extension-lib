@@ -294,7 +294,9 @@ function BaseNode({
       setNode((nd) => ({
         ...nd,
         data: Array(node.metadata.args.length).fill(null),
-        operator: `${node.metadata.lambda}/operator/${node.metadata.operator}`, // specify operator url as such
+        operator: node.metadata.lambda
+          ? `${node.metadata.lambda}/operator/${node.metadata.operator}`
+          : `${baseUrl(node.remote.url)}/operator/${node.metadata.operator}`,
         num_inputs: 0,
         num_outputs: node.metadata.num_outputs,
       }));
