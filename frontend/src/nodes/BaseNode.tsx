@@ -288,6 +288,7 @@ function BaseNode({
 }: NodeProps<z.infer<typeof dataSchema>>) {
   console.log("BaseNode !!!", node)
   const [initialized, setInitialized] = useState(false);
+  const [newId, setNewId] = useState<string>(uuidv4());
 
   useEffect(() => {
     console.log("BaseNode init")
@@ -295,14 +296,14 @@ function BaseNode({
     if (!node.data?.data?.operatorNode) {
       console.log("No op node")
       const newOpNode = {
-        id: uuidv4(),
+        id: newId,
         operator: `${baseUrl(node.remote.url)}/operator/${node.metadata.operator
           }`, // specify operator url as such
         input_ids: [],
         output_ids: [],
         data: Array(node.metadata.args.length).fill(null)
       }
-
+      console.log("newOpNode", newOpNode)
       setNode((nd) => ({
         ...nd,
         operator: "graph", // specify operator url as such
@@ -327,11 +328,12 @@ function BaseNode({
     if (initialized) {
       console.log("BaseNode changed")
       // if operator node is not set, do nothing
-      if (!node.data.data.operatorNode) return;
+      if (!node.data?.data) return;
+      if (!node.data.data?.operatorNode) return;
 
       // if the operator node has not changed, do nothing (check contents)
       if (JSON.stringify(node.data.data.operatorNode) === JSON.stringify(lastData)) return;
-
+      console.log("BaseNode changed and not equal", node.data.data.operatorNode, lastData)
       // if the operator node has changed, update the graph
       setLastData(node.data.data.operatorNode);
 
@@ -356,9 +358,9 @@ function BaseNode({
         newGraph.push({
           id: node.id + "-output-" + i,
           operator: "proxyoutnode",
-          data: { index: i + node.num_inputs + 1 },
+          data: { id: i + node.num_inputs + 1 },
           input_ids: [{ id: i + node.num_inputs }],
-          output_ids: []
+          output_ids: [{id: i + node.num_inputs + node.num_outputs}]
         })
       }
 
@@ -374,9 +376,11 @@ function BaseNode({
       setNode((nd) => { return newNode })
     }
   }, [node, initialized]);
-  if (!initialized) {
-    return null;
-  }
+
+  console.log("Checking node", node)
+  if (!node.data?.data) return null;
+  if (!node.data.data?.operatorNode) return null;
+  console.log("node is ", node)
   return (
     <div tw="flex flex-col space-y-2 w-96">
       {node.metadata.name ? (
@@ -403,11 +407,13 @@ function BaseNode({
                   ...nd,
                   data: {
                     ...nd.data,
-                    operatorNode: {
-                      ...nd.data.data.operatorNode,
-                      data: nd.data.data.operatorNode.data.map((x, i) =>
-                        i === idx ? newArg : x
-                      ),
+                    data: {
+                      operatorNode: {
+                        ...nd.data.data.operatorNode,
+                        data: nd.data.data.operatorNode.data.map((x, i) =>
+                          i === idx ? newArg : x
+                        ),
+                      }
                     },
                   },
                 }));
