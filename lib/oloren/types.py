@@ -93,6 +93,14 @@ class Bool(Type):
 
     default: bool = False
 
+@dataclass
+class Json(Type):
+    """
+    Json: A class for defining a json input.
+
+    Represents a user input where they can provide a json.
+    """
+    pass
 
 @dataclass
 class File(Type):
@@ -135,14 +143,14 @@ class Option(Type):
             return f"You provided {optional} for the optional input."
     """
 
-    inner: Union[Choice, Num, File, Bool, String]
+    inner: Union[Choice, Num, File, Bool, String, Json]
     _type: Optional[str] = None
 
 
 @dataclass
 class Ty(Interface):
     name: str
-    ty: Union[Choice, Num, File, Bool, String, Option]
+    ty: Union[Choice, Num, File, Bool, String, Json, Option]
     type: str
 
 
