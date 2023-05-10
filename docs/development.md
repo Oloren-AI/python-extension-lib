@@ -11,6 +11,10 @@ Now, the following boilerplate code for `app.py `will get you started:
 ```
 import oloren as olo
 
+@olo.register(description="test")
+def hello():
+    return "Hello World!"
+
 if __name__ == "__main__":
     olo.run("sample_extension", port=5829) 
 ```
