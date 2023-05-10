@@ -12,6 +12,8 @@ import inspect
 from dataclasses import asdict
 from .types import NULL_VALUE, Type, Config, Ty, Option
 from typing import Dict, Tuple, Callable
+import subprocess
+import sys
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "static"))
 
@@ -227,6 +229,27 @@ def run(name: str, port=4823):
         if __name__ == "__main__":
             olo.run("sample_extension", port=5829)
     """
+
+    # Some special stuff to handle deployment to AWS Lambda
+    script = os.path.abspath(os.path.abspath(sys.argv[0]))
+    if "MODE" in os.environ and os.environ["MODE"] == "LAMBDABUILD":
+        handler_source = """
+def handler(event, context):
+    import oloren
+    oloren.handler(event, context)
+"""
+        # Check if the handler already exists
+        with open(script, "r") as f:
+            if handler_source in f.read():
+                return
+
+        with open(script, "a") as f:
+            f.write("\n" + handler_source)
+        subprocess.run([sys.executable, "-m", "pip", "install", "awslambdaric"])
+        return
+    elif "MODE" in os.environ and os.environ["MODE"] == "LAMBDA":
+        subprocess.run([sys.executable, "-m", "awslambdaric", sys.argv[0].replace(".py", ".handler")], cwd=os.getcwd())
+        return
 
     global EXTENSION_NAME
     EXTENSION_NAME = name.replace(" ", "").replace("-", "_")
