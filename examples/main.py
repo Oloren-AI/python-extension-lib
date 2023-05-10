@@ -14,7 +14,7 @@ def operation(operation=olo.Choice(["Add", "Subtract", "Multiply", "Divide"]), a
         return a / b
 
 
-olo.run("raunakextension")
+olo.run("exampleextension")
 
 
 def handler(event, context):
