@@ -14,6 +14,7 @@ from .types import NULL_VALUE, Type, Config, Ty, Option
 from typing import Dict, Tuple, Callable
 import subprocess
 import sys
+import zipfile
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "static"))
 
@@ -163,6 +164,14 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
                     isinstance(input, dict) and "url" in input
                 ), "File inputs must be signed URLs. The error is most likely caused by mapping a non-file input to a file input."
                 inputs[i] = download_from_signed_url(inputs[i]["url"])
+            elif FUNCTIONS[FUNCTION_NAME][1].args[i].type == "Dir":
+                assert (
+                    isinstance(input, dict) and "url" in input
+                ), "Directory inputs must be signed URLs. The error is most likely caused by mapping a non-directory input to a directory input."
+                inputs[i] = download_from_signed_url(inputs[i]["url"])
+                os.rename(inputs[i], inputs[i] + ".zip")
+                with zipfile.ZipFile(inputs[i] + ".zip", "r") as zip_ref:
+                    zip_ref.extractall(inputs[i])
             if input == NULL_VALUE:
                 inputs[i] = None
 

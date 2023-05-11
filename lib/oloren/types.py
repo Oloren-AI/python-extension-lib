@@ -121,7 +121,15 @@ class File(Type):
     """
 
     allowed_extensions: Optional[List[str]] = None
-
+    
+@dataclass
+class Dir(Type):
+    """
+    Dir: A class for defining a directory input.
+    
+    Represents a user input where they can upload a directory. The directory will be available in the function as a string path.
+    """
+    pass
 
 @dataclass
 class Option(Type):

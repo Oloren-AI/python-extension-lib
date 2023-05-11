@@ -37,6 +37,7 @@ import {
   Option,
   Ty,
   String as BackendString,
+  Json as BackendJson,
   nullValue,
 } from "../backend";
 
@@ -250,6 +251,9 @@ function RenderArgument({
               />
             );
           }
+          case "Json": {
+            return null;
+          }
           case "Bool":
             return (
               <Switch
@@ -265,6 +269,8 @@ function RenderArgument({
               />
             );
           case "File":
+            return null;
+          case "Dir":
             return null;
           default: {
             const exhaustiveCheck: never = arg.type;
