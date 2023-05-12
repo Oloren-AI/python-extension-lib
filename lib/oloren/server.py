@@ -276,7 +276,7 @@ def handler(event, context):
         remote_entry_path = os.path.abspath(os.path.join(buildcopy, "remoteEntry.js"))
         directory_path = os.path.abspath(os.path.join(buildcopy, "../directory"))
 
-        shutil.copytree(os.path.join(os.path.dirname(__file__), "static"), buildcopy, dirs_exist_ok=True)
+        shutil.copytree(os.path.join(os.path.dirname(__file__), "static"), buildcopy)
 
         remote = process_remoteentry(remote_entry_path)
         with open(remote_entry_path, "w") as file:
