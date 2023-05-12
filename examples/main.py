@@ -14,6 +14,16 @@ def operation(operation=olo.Choice(["Add", "Subtract", "Multiply", "Divide"]), a
         return a / b
 
 
+@olo.register()
+def sample(a=olo.Option(olo.String()), b=olo.String()):
+    return f"a = {a} b = {b}"
+
+
+@olo.register()
+def read_file(file=olo.File()):
+    return file
+
+
 olo.run("exampleextension")
 
 

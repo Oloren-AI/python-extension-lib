@@ -69,6 +69,7 @@ function RenderArgument({
     : arg.type === "File"
     ? "input"
     : "node";
+
   const argValue = fullValue ? fullValue["value"] : fullValue;
 
   const setArg = (newArg: any) => {
@@ -84,10 +85,10 @@ function RenderArgument({
   };
 
   useEffect(() => {
-    if (!fullValue && optional && setFullValue) {
+    if (!fullValue && (mode == "input" || optional) && setFullValue) {
       setArg(nullValue);
     }
-  }, [fullValue, optional, setFullValue]);
+  }, [fullValue, optional, mode, setFullValue]);
 
   type Handles = {
     [key: string]: number;
