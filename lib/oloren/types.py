@@ -134,6 +134,12 @@ class Dir(Type):
     pass
 
 @dataclass
+class Func(Type):
+    """
+    Func: A class for defining a function input.
+    """
+
+@dataclass
 class Option(Type):
     """
     Option allows you to specify that a type is optional. Pass the type you want to be optional as the first argument.

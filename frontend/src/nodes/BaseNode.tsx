@@ -273,6 +273,8 @@ function RenderArgument({
             return null;
           case "Dir":
             return null;
+          case "Func":
+            return null;
           default: {
             const exhaustiveCheck: never = arg.type;
             throw new Error("Unhandled argument type");

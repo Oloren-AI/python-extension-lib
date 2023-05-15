@@ -8,10 +8,10 @@ with open(path, "r") as file:
 
 setup(
     name="oloren",
-    version="0.0.14b1",
+    version="0.0.14c",
     packages=find_packages(exclude=("examples", "frontend")),
     python_requires=">=3.6",
-    install_requires=["flask", "flask_cors", "requests"],
+    install_requires=["flask", "flask_cors", "python-socketio", "requests"],
     description="A simple python library for creating Oloren Orchestrator extensions.",
     long_description=long_description,
     long_description_content_type="text/markdown",

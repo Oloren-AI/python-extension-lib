@@ -29,15 +29,18 @@ export interface File {
 export interface Dir {
 }
 
+export interface Func {
+}
+
 export interface Option {
     inner: Choice | Num | File | Bool | String | Json;
-    _type: "Choice" | "Num" | "String" | "Bool" | "Json" | "File" | "Dir";
+    _type: "Choice" | "Num" | "String" | "Bool" | "Json" | "File" | "Dir" | "Func";
 }
 
 export interface Ty {
     name: string;
     ty: Choice | Num | File | Bool | String | Json | Option;
-    type: "Choice" | "Num" | "String" | "Bool" | "Json" | "File" | "Dir" | "Option";
+    type: "Choice" | "Num" | "String" | "Bool" | "Json" | "File" | "Dir" | "Func" | "Option";
 }
 
 export interface Config {

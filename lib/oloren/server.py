@@ -1,4 +1,4 @@
-from flask import Flask, Response, request, send_from_directory, jsonify
+from flask import Flask, Response, request, send_from_directory, jsonify, session
 from flask_cors import CORS
 import json
 import tempfile
@@ -9,21 +9,28 @@ import traceback
 import threading
 import io
 import os
+import copy
 import inspect
 from dataclasses import asdict
 from .types import NULL_VALUE, Type, Config, Ty, Option
-from typing import Dict, Tuple, Callable
+from typing import Dict, Tuple, Callable, Union, List
 import subprocess
 import sys
 import zipfile
+import socketio
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "static"))
-
+app.secret_key = "catcocacolacatdog"
 CORS(app)
+
+session = requests.Session()
 
 FUNCTIONS: Dict[str, Tuple[Callable, Config]] = {}
 EXTENSION_NAME = ""
-
 
 def register(name="", description="", num_outputs=1):
     """Register a function as an extension.
@@ -72,6 +79,76 @@ def register(name="", description="", num_outputs=1):
 
     return decorator
 
+import socketio
+import requests
+import json
+from typing import List, Union
+import uuid
+from threading import Timer
+
+
+def run_graph(node_id: int, inputs: List[dict], graph: dict, dispatcher_url: str, timeout_ms: int = 500000) -> Union[List[dict], str]:
+    print("runGraph", node_id)
+    
+    sio = socketio.Client(logger=True, engineio_logger=True)
+
+    parsed_graph = graph
+    parsed_graph["id"] = str(uuid.uuid4()) + "-graph"
+    
+    max_id = max([output_id['id'] for output_id in parsed_graph['output_ids']]) + 1
+
+    new_elements = []
+    for idx, input in enumerate(inputs):
+        new_element = {
+            "id": f"{str(uuid.uuid4())}-input-{idx}",
+            "data": input,
+            "operator": "extractdata",
+            "input_ids": [],
+            "output_ids": [{"id": max_id + idx}]
+        }
+        new_elements.append(new_element)
+
+    parsed_graph["input_ids"] = [el["output_ids"][0] for el in new_elements]
+    new_graph = [parsed_graph] + new_elements
+    
+    def on_connect():
+        def on_extension_register(client_uuid):
+            print("onExtensionRegister ", client_uuid)
+            url = f"{dispatcher_url}/run_graph"
+            headers = {"Content-Type": "application/json"}
+            data = json.dumps({"graph": new_graph, "uuid": client_uuid})
+            print(f"Sending request to dispatcherUrl: {url}, data: {data}")
+            response = requests.post(url, headers=headers, data=data)
+            if response.status_code != 200:
+                print(f"Failed to fetch from dispatcherUrl: {response.text}")
+        print(f"Registering extension with id: {node_id}") 
+        sio.emit("extensionregister", data={"id": node_id}, callback=on_extension_register)
+
+    sio.on('connect', on_connect)
+
+    def on_node(node):
+        print("onNode", node)
+        if parsed_graph["id"] == node["data"]["id"]:
+            if node["status"] == "finished":
+                if len(node["data"]["output_ids"]) > 0:
+                    print("Fn ran successfully: " + json.dumps(node))
+                    timeout.cancel()
+                    sio.disconnect()
+                    return node["output"]
+            elif node["status"] != "running":
+                print("Fn failed to run: " + json.dumps(node))
+
+    sio.on('node', on_node)
+
+    timeout = Timer(timeout_ms/1000, lambda: print(f"Operation timed out after {timeout_ms}ms"))
+    timeout.start()
+    print("Connecting to dispatcherUrl: " + dispatcher_url)
+    sio.connect(dispatcher_url)
+    
+    while True:
+        pass
+
+    return "Function ran successfully"
 
 @app.route("/")
 def health_check():
@@ -159,6 +236,7 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
                 inputs[int(i)] = body["inputs"][input_idx]
 
         for i, input in enumerate(inputs):  # convert file inputs into file paths
+            print(f"input {i}: {input}")
             if FUNCTIONS[FUNCTION_NAME][1].args[i].type == "File":
                 assert (
                     isinstance(input, dict) and "url" in input
@@ -172,6 +250,11 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
                 os.rename(inputs[i], inputs[i] + ".zip")
                 with zipfile.ZipFile(inputs[i] + ".zip", "r") as zip_ref:
                     zip_ref.extractall(inputs[i])
+            elif FUNCTIONS[FUNCTION_NAME][1].args[i].type == "Func":
+                input_graph = copy.deepcopy(inputs[i])
+                def my_run_graph(*args):
+                    return run_graph(body["node"]["id"], args, json.loads(json.dumps(input_graph)), dispatcher_url)
+                inputs[i] = my_run_graph
             if input == NULL_VALUE:
                 inputs[i] = None
 
@@ -218,10 +301,6 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
                 "error": error_msg,
             },
         )
-<<<<<<< HEAD
-
-=======
->>>>>>> aeffa0679b2b4ecee53bd5fab6fc2936f7204349
 
 def run(name: str, port=4823):
     """Runs the extension. Launches a HTTP server at the specified port for development and port 80 for production.
