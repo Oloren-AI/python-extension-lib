@@ -154,7 +154,6 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
     key = str(uuid.uuid4())
     print(key + " start")
     
-    cur_dir = os.getcwd()
     try:
         inputs = [inp["value"] for inp in body["node"]["data"]]
 
@@ -222,10 +221,6 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
                 "error": error_msg,
             },
         )
-    finally:
-        os.chdir(cur_dir)
-    print(key + " done")
-
 
 def run(name: str, port=4823):
     """Runs the extension. Launches a HTTP server at the specified port for development and port 80 for production.
