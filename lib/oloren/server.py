@@ -218,7 +218,10 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
                 "error": error_msg,
             },
         )
+<<<<<<< HEAD
 
+=======
+>>>>>>> aeffa0679b2b4ecee53bd5fab6fc2936f7204349
 
 def run(name: str, port=4823):
     """Runs the extension. Launches a HTTP server at the specified port for development and port 80 for production.
