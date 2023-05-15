@@ -2,6 +2,7 @@ from flask import Flask, Response, request, send_from_directory, jsonify
 from flask_cors import CORS
 import json
 import tempfile
+import uuid
 from .util import OutputFile
 import requests
 import traceback
@@ -150,6 +151,9 @@ def download_from_signed_url(signed_url):
 
 
 def execute_function(dispatcher_url, body, FUNCTION_NAME):
+    key = str(uuid.uuid4())
+    print(key + " start")
+    
     cur_dir = os.getcwd()
     try:
         inputs = [inp["value"] for inp in body["node"]["data"]]
@@ -220,6 +224,7 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
         )
     finally:
         os.chdir(cur_dir)
+    print(key + " done")
 
 
 def run(name: str, port=4823):
