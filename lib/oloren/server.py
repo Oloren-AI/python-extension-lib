@@ -18,9 +18,6 @@ import subprocess
 import sys
 import zipfile
 import socketio
-import logging
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "static"))
@@ -31,6 +28,7 @@ session = requests.Session()
 
 FUNCTIONS: Dict[str, Tuple[Callable, Config]] = {}
 EXTENSION_NAME = ""
+
 
 def register(name="", description="", num_outputs=1):
     """Register a function as an extension.
@@ -79,6 +77,7 @@ def register(name="", description="", num_outputs=1):
 
     return decorator
 
+
 import socketio
 import requests
 import json
@@ -86,69 +85,6 @@ from typing import List, Union
 import uuid
 from threading import Timer
 
-
-def run_graph(node_id: int, inputs: List[dict], graph: dict, dispatcher_url: str, timeout_ms: int = 500000) -> Union[List[dict], str]:
-    print("runGraph", node_id)
-    
-    sio = socketio.Client(logger=True, engineio_logger=True)
-
-    parsed_graph = graph
-    parsed_graph["id"] = str(uuid.uuid4()) + "-graph"
-    
-    max_id = max([output_id['id'] for output_id in parsed_graph['output_ids']]) + 1
-
-    new_elements = []
-    for idx, input in enumerate(inputs):
-        new_element = {
-            "id": f"{str(uuid.uuid4())}-input-{idx}",
-            "data": input,
-            "operator": "extractdata",
-            "input_ids": [],
-            "output_ids": [{"id": max_id + idx}]
-        }
-        new_elements.append(new_element)
-
-    parsed_graph["input_ids"] = [el["output_ids"][0] for el in new_elements]
-    new_graph = [parsed_graph] + new_elements
-    
-    def on_connect():
-        def on_extension_register(client_uuid):
-            print("onExtensionRegister ", client_uuid)
-            url = f"{dispatcher_url}/run_graph"
-            headers = {"Content-Type": "application/json"}
-            data = json.dumps({"graph": new_graph, "uuid": client_uuid})
-            print(f"Sending request to dispatcherUrl: {url}, data: {data}")
-            response = requests.post(url, headers=headers, data=data)
-            if response.status_code != 200:
-                print(f"Failed to fetch from dispatcherUrl: {response.text}")
-        print(f"Registering extension with id: {node_id}") 
-        sio.emit("extensionregister", data={"id": node_id}, callback=on_extension_register)
-
-    sio.on('connect', on_connect)
-
-    def on_node(node):
-        print("onNode", node)
-        if parsed_graph["id"] == node["data"]["id"]:
-            if node["status"] == "finished":
-                if len(node["data"]["output_ids"]) > 0:
-                    print("Fn ran successfully: " + json.dumps(node))
-                    timeout.cancel()
-                    sio.disconnect()
-                    return node["output"]
-            elif node["status"] != "running":
-                print("Fn failed to run: " + json.dumps(node))
-
-    sio.on('node', on_node)
-
-    timeout = Timer(timeout_ms/1000, lambda: print(f"Operation timed out after {timeout_ms}ms"))
-    timeout.start()
-    print("Connecting to dispatcherUrl: " + dispatcher_url)
-    sio.connect(dispatcher_url)
-    
-    while True:
-        pass
-
-    return "Function ran successfully"
 
 @app.route("/")
 def health_check():
@@ -196,6 +132,97 @@ def get_directory_json():
 @app.route("/directory", methods=["GET"])
 def get_directory():
     return jsonify(get_directory_json())
+
+
+from functools import wraps
+import errno
+import os
+import signal
+
+
+class TimeoutError(Exception):
+    pass
+
+
+def timeout(seconds=100, error_message=os.strerror(errno.ETIME)):
+    def decorator(func):
+        def _handle_timeout(signum, frame):
+            raise TimeoutError(error_message)
+
+        def wrapper(*args, **kwargs):
+            signal.signal(signal.SIGALRM, _handle_timeout)
+            signal.alarm(seconds)
+            try:
+                result = func(*args, **kwargs)
+            finally:
+                signal.alarm(0)
+            return result
+
+        return wraps(func)(wrapper)
+
+    return decorator
+
+
+import uuid
+
+
+def run_blue_node(graph, node_id, dispatcher_url, inputs):
+    socket_url = dispatcher_url.replace("http://", "ws://").replace("https://", "ws://")
+
+    socket = socketio.Client()
+    maxId = max([outputId["id"] for outputId in graph["output_ids"]]) + 1
+    uid = str(uuid.uuid4())
+
+    newElements = [
+        {
+            "id": f"{uid}-input-{idx}",
+            "data": inp,
+            "operator": "extractdata",
+            "input_ids": [],
+            "output_ids": [{"id": maxId + idx}],
+        }
+        for idx, inp in enumerate(inputs)
+    ]
+
+    newGraph = [graph] + newElements
+
+    graph["id"] = f"{uid}-graph"
+    graph["input_ids"] = [el["output_ids"][0] for el in newElements]
+
+    output = None
+    error = None
+
+    @socket.on("connect")
+    def connect():
+        def on_extensionregister_response(*args):
+            client_uuid = args[0]
+            response = requests.post(
+                f"{dispatcher_url}/run_graph",
+                data=json.dumps({"graph": newGraph, "uuid": client_uuid}),
+                headers={"Content-Type": "application/json"},
+            )
+
+        socket.emit("extensionregister", data={"id": node_id}, callback=on_extensionregister_response)
+
+    @socket.on("node")
+    def node(node_data):
+        nonlocal output, error
+        if graph["id"] == node_data["data"]["id"]:
+            if node_data["status"] == "finished":
+                if len(node_data["data"]["output_ids"]) > 0:
+                    output = node_data["output"]
+                socket.disconnect()
+            elif node_data["status"] != "running":
+                socket.disconnect()
+                error = json.dumps(node_data)
+
+    socket.connect(socket_url)
+    socket.wait()
+
+    if error:
+        raise Exception(error)
+
+    return output
 
 
 # Replace this with a loop over your FUNCTIONS
@@ -252,9 +279,12 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
                     zip_ref.extractall(inputs[i])
             elif FUNCTIONS[FUNCTION_NAME][1].args[i].type == "Func":
                 input_graph = copy.deepcopy(inputs[i])
+
                 def my_run_graph(*args):
-                    return run_graph(body["node"]["id"], args, json.loads(json.dumps(input_graph)), dispatcher_url)
+                    return run_blue_node(input_graph, body["id"], dispatcher_url, args)
+
                 inputs[i] = my_run_graph
+
             if input == NULL_VALUE:
                 inputs[i] = None
 
@@ -301,6 +331,7 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
                 "error": error_msg,
             },
         )
+
 
 def run(name: str, port=4823):
     """Runs the extension. Launches a HTTP server at the specified port for development and port 80 for production.
@@ -372,6 +403,7 @@ def handler(event, context):
         return
 
     port = 80 if os.getenv("MODE") == "PROD" else port
+
     app.run(host="0.0.0.0", port=port, debug=(os.getenv("MODE") != "PROD"))
 
 
