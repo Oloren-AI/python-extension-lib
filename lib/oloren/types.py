@@ -112,19 +112,15 @@ class File(Type):
 
     Represents a user input where they can upload a file. The file will be available in the function as a string path.
 
-    Args:
-        allowed_extensions (Optional[List[str]]): A list of allowed file extensions. Defaults to None.
-
     Example::
-
+    
         @olo.register(description="Count the number of lines in a text file.")
-        def line_counter(file=olo.File(allowed_extensions=[".txt"])):
+        def line_counter(file=olo.File()):
             with open(file, "r") as f:
                 return len(f.readlines())
     """
 
-    allowed_extensions: Optional[List[str]] = None
-
+    pass
 
 @dataclass
 class Dir(Type):
