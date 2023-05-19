@@ -166,13 +166,14 @@ def timeout(seconds=100, error_message=os.strerror(errno.ETIME)):
 import uuid
 
 
-def run_blue_node(graph, node_id, dispatcher_url, inputs):
+def run_blue_node(graph, node_id, dispatcher_url, inputs, uid = None):
     socket_url = dispatcher_url.replace("http://", "ws://").replace("https://", "ws://")
 
     socket = socketio.Client()
     maxId = max([outputId["id"] for outputId in graph["output_ids"]]) + 1
-    uid = str(uuid.uuid4())
-
+    if not uid:
+        uid = str(uuid.uuid4())
+        
     newElements = [
         {
             "id": f"{uid}-input-{idx}",
@@ -183,14 +184,14 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs):
         }
         for idx, inp in enumerate(inputs)
     ]
-
+    
     newGraph = [graph] + newElements
-
-    graph["id"] = f"{uid}-graph"
-    graph["input_ids"] = [el["output_ids"][0] for el in newElements]
-
+    newGraph = json.loads(json.dumps(newGraph))
+    newGraph[0]["id"] = f"{uid}-graph"
+    newGraph[0]["input_ids"] = [el["output_ids"][0] for el in newElements]
     output = None
     error = None
+    
 
     @socket.on("connect")
     def connect():
@@ -207,7 +208,7 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs):
     @socket.on("node")
     def node(node_data):
         nonlocal output, error
-        if graph["id"] == node_data["data"]["id"]:
+        if f"{uid}-graph" == node_data["data"]["id"]:
             if node_data["status"] == "finished":
                 if len(node_data["data"]["output_ids"]) > 0:
                     output = node_data["output"]
@@ -221,10 +222,9 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs):
 
     if error:
         raise Exception(error)
-
+    print(f"Done with blue node {output}")
     return output
-
-
+    
 # Replace this with a loop over your FUNCTIONS
 @app.route("/operator/<FUNCTION_NAME>", methods=["POST"])
 def operator(FUNCTION_NAME):
@@ -263,7 +263,6 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
                 inputs[int(i)] = body["inputs"][input_idx]
 
         for i, input in enumerate(inputs):  # convert file inputs into file paths
-            print(f"input {i}: {input}")
             if FUNCTIONS[FUNCTION_NAME][1].args[i].type == "File":
                 assert (
                     isinstance(input, dict) and "url" in input
