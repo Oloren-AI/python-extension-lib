@@ -140,6 +140,12 @@ class Func(Type):
     """
     Func: A class for defining a function input.
     """
+    
+@dataclass
+class Funcs(Type):
+    """
+    Funcs: A class for defining a list of functions input.
+    """
 
 
 @dataclass

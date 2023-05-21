@@ -275,6 +275,8 @@ function RenderArgument({
             return null;
           case "Func":
             return null;
+          case "Funcs":
+            return null;
           default: {
             const exhaustiveCheck: never = arg.type;
             throw new Error("Unhandled argument type");

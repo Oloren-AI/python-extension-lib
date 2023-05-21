@@ -5,7 +5,7 @@ import requests
 
 
 def run_blue_node(graph, node_id, dispatcher_url, inputs):
-    socket_url = dispatcher_url.replace("http://", "ws://").replace("https://", "ws://")
+    socket_url = dispatcher_url.replace("http://", "ws://").replace("https://", "wss://")
 
     socket = socketio.Client()
     maxId = max([outputId["id"] for outputId in graph["output_ids"]]) + 1

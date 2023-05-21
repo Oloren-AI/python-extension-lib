@@ -23,7 +23,6 @@ export interface Json {
 }
 
 export interface File {
-    allowed_extensions: Array<string> | null;
 }
 
 export interface Dir {
@@ -32,15 +31,18 @@ export interface Dir {
 export interface Func {
 }
 
+export interface Funcs {
+}
+
 export interface Option {
     inner: Choice | Num | File | Bool | String | Json;
-    _type: "Choice" | "Num" | "String" | "Bool" | "Json" | "File" | "Dir" | "Func";
+    _type: "Choice" | "Num" | "String" | "Bool" | "Json" | "File" | "Dir" | "Func" | "Funcs";
 }
 
 export interface Ty {
     name: string;
     ty: Choice | Num | File | Bool | String | Json | Option;
-    type: "Choice" | "Num" | "String" | "Bool" | "Json" | "File" | "Dir" | "Func" | "Option";
+    type: "Choice" | "Num" | "String" | "Bool" | "Json" | "File" | "Dir" | "Func" | "Funcs" | "Option";
 }
 
 export interface Config {

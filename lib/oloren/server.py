@@ -18,6 +18,7 @@ import subprocess
 import sys
 import zipfile
 import socketio
+from functools import partial
 
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "static"))
@@ -167,7 +168,8 @@ import uuid
 
 
 def run_blue_node(graph, node_id, dispatcher_url, inputs, uid = None):
-    socket_url = dispatcher_url.replace("http://", "ws://").replace("https://", "ws://")
+    
+    socket_url = dispatcher_url.replace("http://", "ws://").replace("https://", "wss://")
 
     socket = socketio.Client()
     maxId = max([outputId["id"] for outputId in graph["output_ids"]]) + 1
@@ -283,6 +285,15 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
                     return run_blue_node(input_graph, body["id"], dispatcher_url, args)
 
                 inputs[i] = my_run_graph
+            elif FUNCTIONS[FUNCTION_NAME][1].args[i].type == "Funcs":
+                input_graphs = copy.deepcopy(inputs[i])
+                def my_run_graph(*args, graph=None):
+                        return run_blue_node(graph, body["id"], dispatcher_url, args)
+                my_funcs = {}
+                for j in range(len(input_graphs)):
+                    my_funcs[j] = partial(my_run_graph, graph=input_graphs[j])
+                    
+                inputs[i] = my_funcs
 
             if input == NULL_VALUE:
                 inputs[i] = None
