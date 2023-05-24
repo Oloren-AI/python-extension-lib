@@ -194,18 +194,18 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, uid = None):
     output = None
     error = None
     
+    socket.connect(socket_url)
+    
+    def on_extensionregister_response(*args):
+        client_uuid = args[0]
+        print(f"Client UUID: {client_uuid} running graph")
+        response = requests.post(
+            f"{dispatcher_url}/run_graph",
+            data=json.dumps({"graph": newGraph, "uuid": client_uuid}),
+            headers={"Content-Type": "application/json"},
+        )
 
-    @socket.on("connect")
-    def connect():
-        def on_extensionregister_response(*args):
-            client_uuid = args[0]
-            response = requests.post(
-                f"{dispatcher_url}/run_graph",
-                data=json.dumps({"graph": newGraph, "uuid": client_uuid}),
-                headers={"Content-Type": "application/json"},
-            )
-
-        socket.emit("extensionregister", data={"id": node_id}, callback=on_extensionregister_response)
+    socket.emit("extensionregister", data={"id": node_id}, callback=on_extensionregister_response)
 
     @socket.on("node")
     def node(node_data):
@@ -218,8 +218,7 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, uid = None):
             elif node_data["status"] != "running":
                 socket.disconnect()
                 error = json.dumps(node_data)
-
-    socket.connect(socket_url)
+    
     socket.wait()
 
     if error:
