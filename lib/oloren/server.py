@@ -2,6 +2,7 @@ from flask import Flask, Response, request, send_from_directory, jsonify, sessio
 from flask_cors import CORS
 import json
 import tempfile
+import time
 import uuid
 from .util import OutputFile
 import requests
@@ -72,7 +73,19 @@ def register(name="", description="", num_outputs=1):
 
             config.args.append(Ty(param.name, param.default, type=param.default.__class__.__name__))
 
-        FUNCTIONS[func.__name__] = (func, config)
+        def wrappedFunc(*args, **kwargs):
+            try:
+                print(f"Running function {func.__name__}", flush=True)
+                start_time = time.time()
+                y = func(*args, **kwargs)
+                end_time = time.time()
+                print(f"Finished function {func.__name__} in {end_time - start_time} seconds", flush=True)
+                return y
+            except Exception as e:
+                print(f"Error in function {func.__name__}: {e}")
+                traceback.print_exc()
+                raise e
+        FUNCTIONS[func.__name__] = (wrappedFunc, config)
 
         return func
 
