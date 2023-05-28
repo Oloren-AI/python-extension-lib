@@ -269,6 +269,9 @@ def download_from_signed_url(signed_url):
 
 
 def execute_function(dispatcher_url, body, FUNCTION_NAME):
+    all_func = {}
+    def my_run_graph(*args, graph=None):
+        return run_blue_node(graph, body["id"], dispatcher_url, args)
     try:
         inputs = [inp["value"] for inp in body["node"]["data"]]
 
@@ -293,14 +296,12 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
             elif FUNCTIONS[FUNCTION_NAME][1].args[i].type == "Func":
                 input_graph = copy.deepcopy(inputs[i])
 
-                def my_run_graph(*args):
-                    return run_blue_node(input_graph, body["id"], dispatcher_url, args)
-
-                inputs[i] = my_run_graph
+                # all_func[i] = partial(my_run_graph, graph=input_graph)
+                # inputs[i] = all_func[i]
+                inputs[i] = partial(my_run_graph, graph=input_graph)
             elif FUNCTIONS[FUNCTION_NAME][1].args[i].type == "Funcs":
                 input_graphs = copy.deepcopy(inputs[i])
-                def my_run_graph(*args, graph=None):
-                        return run_blue_node(graph, body["id"], dispatcher_url, args)
+                
                 my_funcs = {}
                 for j in range(len(input_graphs)):
                     my_funcs[j] = partial(my_run_graph, graph=input_graphs[j])
