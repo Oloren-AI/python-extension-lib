@@ -452,5 +452,31 @@ def handler(event, context):
 
     return "Ok"
 
+def upload_file(file_path):
+    """
+    This function uploads a file to Orchestrator and returns the file S3 json.
+    """
+    # Ensure the file exists
+    try:
+        with open(file_path, 'rb') as f:
+            pass
+    except FileNotFoundError:
+        print(f"No file found at path: {file_path}")
+        return
 
-__all__ = ["register", "run", "handler"]
+    # Open the file in binary mode and upload it
+    with open(file_path, 'rb') as f:
+        files = {'file': f}
+        upload_url = f"{dispatcher_url}/upload"
+        response = requests.post(upload_url, files=files)
+
+    # If the request was successful, print the response
+    if response.status_code == 200:
+        print(f"File uploaded successfully: {response.json()}")
+        return response.json()
+    else:
+        print(f"File upload failed with status code: {response.status_code}")
+
+
+
+__all__ = ["register", "run", "handler", "upload_file"]
