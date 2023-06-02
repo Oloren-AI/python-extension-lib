@@ -180,8 +180,8 @@ def timeout(seconds=100, error_message=os.strerror(errno.ETIME)):
 import uuid
 
 
-def run_blue_node(graph, node_id, dispatcher_url, inputs, uid = None):
-    
+def run_blue_node(graph, node_id, dispatcher_url, inputs, uid = None, token = None):
+    assert token is not None, "Token must be provided, you likely need to assign the permission 'Run Graph Access` via the Extensions window"
     socket_url = dispatcher_url.replace("http://", "ws://").replace("https://", "wss://")
 
     socket = socketio.Client()
@@ -215,8 +215,12 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, uid = None):
         response = requests.post(
             f"{dispatcher_url}/run_graph",
             data=json.dumps({"graph": newGraph, "uuid": client_uuid}),
-            headers={"Content-Type": "application/json"},
+            headers={"Content-Type": "application/json",
+                     "Authorization": f"Bearer {token}"},
         )
+        
+        if response.status_code != 200:
+            raise Exception(response.text)
 
     socket.emit("extensionregister", data={"id": node_id}, callback=on_extensionregister_response)
 
@@ -243,21 +247,31 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, uid = None):
 @app.route("/operator/<FUNCTION_NAME>", methods=["POST"])
 def operator(FUNCTION_NAME):
     global dispatcher_url
+    try:
+        body = request.json
+        body["node"]
+        body["inputs"]
+        body["id"]
 
-    body = request.json
-    body["node"]
-    body["inputs"]
-    body["id"]
+        dispatcher_url = body.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
 
-    dispatcher_url = body.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
+        t = threading.Thread(target=execute_function, args=(dispatcher_url, body, FUNCTION_NAME))
+        t.start()
 
-    t = threading.Thread(target=execute_function, args=(dispatcher_url, body, FUNCTION_NAME))
-    t.start()
+        response = jsonify("Ok")
+        response.status_code = 200
 
-    response = jsonify("Ok")
-    response.status_code = 200
-
-    return response
+        return response
+    except Exception:
+        error_msg = traceback.format_exc()
+        requests.post(
+            f"{dispatcher_url}/node_error",
+            headers={"Content-Type": "application/json"},
+            json={
+                "node": body["id"],
+                "error": error_msg,
+            },
+        )
 
 
 def download_from_signed_url(signed_url):
@@ -271,7 +285,7 @@ def download_from_signed_url(signed_url):
 def execute_function(dispatcher_url, body, FUNCTION_NAME):
     all_func = {}
     def my_run_graph(*args, graph=None):
-        return run_blue_node(graph, body["id"], dispatcher_url, args)
+        return run_blue_node(graph, body["id"], dispatcher_url, args, token=body["node"]["token"])
     try:
         inputs = [inp["value"] for inp in body["node"]["data"]]
 
