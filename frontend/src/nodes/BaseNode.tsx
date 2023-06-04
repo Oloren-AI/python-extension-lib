@@ -101,12 +101,12 @@ function RenderArgument({
       ref.current.offsetTop &&
       ref.current.clientHeight
     ) {
+      console.log("OFFSET")
       setNode((nd) => {
         const newInputHandles: Handles = {
           ...(nd.input_handles ? nd.input_handles : {}),
           [key]:
-            (ref.current?.offsetTop ?? 0) +
-            (ref.current?.clientHeight ?? 0) / 2,
+            (ref.current?.offsetTop ?? 0) - 28,
         };
 
         return {
