@@ -2,6 +2,7 @@ from flask import Flask, Response, request, send_from_directory, jsonify, sessio
 from flask_cors import CORS
 import json
 import tempfile
+import time
 import uuid
 from .util import OutputFile
 import requests
@@ -72,7 +73,19 @@ def register(name="", description="", num_outputs=1):
 
             config.args.append(Ty(param.name, param.default, type=param.default.__class__.__name__))
 
-        FUNCTIONS[func.__name__] = (func, config)
+        def wrappedFunc(*args, **kwargs):
+            try:
+                print(f"Running function {func.__name__}", flush=True)
+                start_time = time.time()
+                y = func(*args, **kwargs)
+                end_time = time.time()
+                print(f"Finished function {func.__name__} in {end_time - start_time} seconds", flush=True)
+                return y
+            except Exception as e:
+                print(f"Error in function {func.__name__}: {e}")
+                traceback.print_exc()
+                raise e
+        FUNCTIONS[func.__name__] = (wrappedFunc, config)
 
         return func
 
@@ -167,8 +180,8 @@ def timeout(seconds=100, error_message=os.strerror(errno.ETIME)):
 import uuid
 
 
-def run_blue_node(graph, node_id, dispatcher_url, inputs, uid = None):
-    
+def run_blue_node(graph, node_id, dispatcher_url, inputs, uid = None, token = None):
+    assert token is not None, "Token must be provided, you likely need to assign the permission 'Run Graph Access` via the Extensions window"
     socket_url = dispatcher_url.replace("http://", "ws://").replace("https://", "wss://")
 
     socket = socketio.Client()
@@ -194,7 +207,7 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, uid = None):
     output = None
     error = None
     
-    socket.connect(socket_url)
+    socket.connect(socket_url, wait_timeout = 10)
     
     def on_extensionregister_response(*args):
         client_uuid = args[0]
@@ -202,8 +215,12 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, uid = None):
         response = requests.post(
             f"{dispatcher_url}/run_graph",
             data=json.dumps({"graph": newGraph, "uuid": client_uuid}),
-            headers={"Content-Type": "application/json"},
+            headers={"Content-Type": "application/json",
+                     "Authorization": f"Bearer {token}"},
         )
+        
+        if response.status_code != 200:
+            raise Exception(response.text)
 
     socket.emit("extensionregister", data={"id": node_id}, callback=on_extensionregister_response)
 
@@ -230,21 +247,31 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, uid = None):
 @app.route("/operator/<FUNCTION_NAME>", methods=["POST"])
 def operator(FUNCTION_NAME):
     global dispatcher_url
+    try:
+        body = request.json
+        body["node"]
+        body["inputs"]
+        body["id"]
 
-    body = request.json
-    body["node"]
-    body["inputs"]
-    body["id"]
+        dispatcher_url = body.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
 
-    dispatcher_url = body.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
+        t = threading.Thread(target=execute_function, args=(dispatcher_url, body, FUNCTION_NAME))
+        t.start()
 
-    t = threading.Thread(target=execute_function, args=(dispatcher_url, body, FUNCTION_NAME))
-    t.start()
+        response = jsonify("Ok")
+        response.status_code = 200
 
-    response = jsonify("Ok")
-    response.status_code = 200
-
-    return response
+        return response
+    except Exception:
+        error_msg = traceback.format_exc()
+        requests.post(
+            f"{dispatcher_url}/node_error",
+            headers={"Content-Type": "application/json"},
+            json={
+                "node": body["id"],
+                "error": error_msg,
+            },
+        )
 
 
 def download_from_signed_url(signed_url):
@@ -256,6 +283,9 @@ def download_from_signed_url(signed_url):
 
 
 def execute_function(dispatcher_url, body, FUNCTION_NAME):
+    all_func = {}
+    def my_run_graph(*args, graph=None):
+        return run_blue_node(graph, body["id"], dispatcher_url, args, token=body["node"]["token"])
     try:
         inputs = [inp["value"] for inp in body["node"]["data"]]
 
@@ -280,14 +310,12 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
             elif FUNCTIONS[FUNCTION_NAME][1].args[i].type == "Func":
                 input_graph = copy.deepcopy(inputs[i])
 
-                def my_run_graph(*args):
-                    return run_blue_node(input_graph, body["id"], dispatcher_url, args)
-
-                inputs[i] = my_run_graph
+                # all_func[i] = partial(my_run_graph, graph=input_graph)
+                # inputs[i] = all_func[i]
+                inputs[i] = partial(my_run_graph, graph=input_graph)
             elif FUNCTIONS[FUNCTION_NAME][1].args[i].type == "Funcs":
                 input_graphs = copy.deepcopy(inputs[i])
-                def my_run_graph(*args, graph=None):
-                        return run_blue_node(graph, body["id"], dispatcher_url, args)
+                
                 my_funcs = {}
                 for j in range(len(input_graphs)):
                     my_funcs[j] = partial(my_run_graph, graph=input_graphs[j])
@@ -438,5 +466,31 @@ def handler(event, context):
 
     return "Ok"
 
+def upload_file(file_path):
+    """
+    This function uploads a file to Orchestrator and returns the file S3 json.
+    """
+    # Ensure the file exists
+    try:
+        with open(file_path, 'rb') as f:
+            pass
+    except FileNotFoundError:
+        print(f"No file found at path: {file_path}")
+        return
 
-__all__ = ["register", "run", "handler"]
+    # Open the file in binary mode and upload it
+    with open(file_path, 'rb') as f:
+        files = {'file': f}
+        upload_url = f"{dispatcher_url}/upload"
+        response = requests.post(upload_url, files=files)
+
+    # If the request was successful, print the response
+    if response.status_code == 200:
+        print(f"File uploaded successfully: {response.json()}")
+        return response.json()
+    else:
+        print(f"File upload failed with status code: {response.status_code}")
+
+
+
+__all__ = ["register", "run", "handler", "upload_file"]
