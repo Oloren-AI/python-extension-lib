@@ -207,7 +207,7 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, uid = None, token = No
     output = None
     error = None
     
-    socket.connect(socket_url)
+    socket.connect(socket_url, wait_timeout = 10)
     
     def on_extensionregister_response(*args):
         client_uuid = args[0]
