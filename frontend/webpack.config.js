@@ -1,9 +1,22 @@
 const HtmlWebpackPlugin = require("html-webpack-plugin");
-const { ModuleFederationPlugin } = require("webpack").container;
+const ModuleFederationPlugin = require("webpack/lib/container/ModuleFederationPlugin");
+const CopyWebpackPlugin = require("copy-webpack-plugin");
+const webpack = require("webpack");
 
+const config = require("./oloren.json");
+const OlorenCore = require("@oloren/core");
 const path = require("path");
-const pkg = require("./package.json");
-const config = require("./config.json");
+const deps = require("./package.json").dependencies;
+
+const fs = require("fs");
+if (!fs.existsSync("./static")) {
+  fs.mkdirSync("./static");
+}
+fs.writeFileSync(
+  "./static/directory",
+  JSON.stringify(OlorenCore.configToDirectory(config), null, 2),
+  "utf-8"
+);
 
 module.exports = {
   entry: "./src/index",
@@ -13,7 +26,7 @@ module.exports = {
     static: {
       directory: path.join(__dirname, "dist"),
     },
-    port: 3002,
+    port: 8080,
   },
   output: {
     publicPath: "auto",
@@ -24,8 +37,8 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /\.css$/,
-        use: ['style-loader', 'css-loader'],
+        test: /\.css$/i,
+        use: ["style-loader", "css-loader"],
       },
       {
         test: /\.tsx?$/,
@@ -41,24 +54,31 @@ module.exports = {
     new ModuleFederationPlugin({
       name: config["name"],
       filename: "remoteEntry.js",
-      exposes: config["nodes"],
+      remotes: {},
+      exposes: OlorenCore.configToWebpack(config),
       shared: [
         {
           react: {
             singleton: true,
-            requiredVersion: pkg.dependencies.react,
+            requiredVersion: deps.react,
           },
         },
         {
           "react-dom": {
             singleton: true,
-            requiredVersion: pkg.dependencies["react-dom"],
+            requiredVersion: deps["react-dom"],
           },
         },
       ],
     }),
+    new CopyWebpackPlugin({
+      patterns: [{ from: "static" }],
+    }),
     new HtmlWebpackPlugin({
       template: "./public/index.html",
+    }),
+    new webpack.ProvidePlugin({
+      process: "process/browser",
     }),
   ],
 };

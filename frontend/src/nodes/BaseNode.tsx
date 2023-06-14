@@ -12,14 +12,6 @@ import {
   Upload,
 } from "antd";
 import React, { useEffect, useRef, useState } from "react";
-import { z } from "zod";
-import {
-  baseUrl,
-  NodeSetter,
-  type FlowNodeData,
-  type Json,
-  type NodeProps,
-} from "../util";
 import {
   UploadOutlined,
   DownloadOutlined,
@@ -39,9 +31,9 @@ import {
   String as BackendString,
   Json as BackendJson,
   nullValue,
+  Config,
 } from "../backend";
-
-const dataSchema = z.array(z.any());
+import { NodeProps, NodeSetter } from "@oloren/core";
 
 interface RenderArgumentProps {
   idx: number;
@@ -51,6 +43,13 @@ interface RenderArgumentProps {
   setNode: NodeSetter<any[]>;
   callUpdate: () => void;
   optional?: boolean;
+}
+
+export function baseUrl(url: string) {
+  const pathArray = url.split("/");
+  const protocol = pathArray[0];
+  const host = pathArray[2];
+  return protocol + "//" + host;
 }
 
 function RenderArgument({
@@ -64,11 +63,7 @@ function RenderArgument({
 }: RenderArgumentProps) {
   const ref = useRef<HTMLDivElement>(null);
 
-  const mode = fullValue
-    ? fullValue["mode"]
-    : arg.type === "File"
-    ? "input"
-    : "node";
+  const mode = fullValue ? fullValue["mode"] : arg.type === "File" ? "input" : "node";
 
   const argValue = fullValue ? fullValue["value"] : fullValue;
 
@@ -95,18 +90,12 @@ function RenderArgument({
   };
 
   useEffect(() => {
-    if (
-      mode === "input" &&
-      ref.current &&
-      ref.current.offsetTop &&
-      ref.current.clientHeight
-    ) {
-      console.log("OFFSET")
+    if (mode === "input" && ref.current && ref.current.offsetTop && ref.current.clientHeight) {
+      console.log("OFFSET");
       setNode((nd) => {
         const newInputHandles: Handles = {
           ...(nd.input_handles ? nd.input_handles : {}),
-          [key]:
-            (ref.current?.offsetTop ?? 0) - 28,
+          [key]: (ref.current?.offsetTop ?? 0) - 28,
         };
 
         return {
@@ -262,11 +251,7 @@ function RenderArgument({
                 onChange={(newArg) => {
                   setArg(newArg);
                 }}
-                checked={
-                  argValue && argValue != nullValue
-                    ? argValue
-                    : (arg.ty as Bool).default
-                }
+                checked={argValue && argValue != nullValue ? argValue : (arg.ty as Bool).default}
               />
             );
           case "File":
@@ -287,29 +272,23 @@ function RenderArgument({
   );
 }
 
-function BaseNode({
-  callAfterUpdateInpOuts = () => {},
-  node,
-  setNode,
-}: NodeProps<z.infer<typeof dataSchema>>) {
-  const data = dataSchema.safeParse(node.data).success
-    ? (node.data as z.infer<typeof dataSchema>)
-    : Array(node.metadata.args.length).fill(null);
+function BaseNode({ callAfterUpdateInpOuts = () => {}, node, setNode }: NodeProps<any[]>) {
+  // @ts-expect-error
+  const metadata = node.metadata! as Config & { lambda?: string };
 
-  const initialized = dataSchema
-    .length(node.metadata.args.length)
-    .safeParse(node.data).success;
+  const initialized = Array.isArray(node.data) && node.data.length === metadata.args.length;
+  const data = initialized ? (node.data as any[]) : Array(metadata.args.length).fill(null);
 
   useEffect(() => {
     if (!initialized) {
       setNode((nd) => ({
         ...nd,
-        data: Array(node.metadata.args.length).fill(null),
-        operator: node.metadata.lambda
-          ? `${node.metadata.lambda}/operator/${node.metadata.operator}`
-          : `${baseUrl(node.remote.url)}/operator/${node.metadata.operator}`,
+        data: Array(metadata.args.length).fill(null),
+        operator: metadata.lambda
+          ? `${metadata.lambda}/operator/${metadata.operator}`
+          : `${baseUrl(node.remote.url)}/operator/${metadata.operator}`,
         num_inputs: 0,
-        num_outputs: node.metadata.num_outputs,
+        num_outputs: metadata.num_outputs,
       }));
       callAfterUpdateInpOuts();
     }
@@ -317,15 +296,13 @@ function BaseNode({
 
   return (
     <div tw="flex flex-col space-y-2 w-96">
-      {node.metadata.name ? (
-        <Typography.Text tw="font-bold">{node.metadata.name}</Typography.Text>
+      {metadata.name ? <Typography.Text tw="font-bold">{metadata.name}</Typography.Text> : null}
+
+      {metadata.description ? (
+        <Typography.Paragraph>{metadata.description}</Typography.Paragraph>
       ) : null}
 
-      {node.metadata.description ? (
-        <Typography.Paragraph>{node.metadata.description}</Typography.Paragraph>
-      ) : null}
-
-      {node.metadata.args.map((arg: any, idx: number) => (
+      {metadata.args.map((arg: any, idx: number) => (
         <RenderArgument
           arg={arg}
           key={idx}
@@ -338,7 +315,7 @@ function BaseNode({
               ? (newArg: any) => {
                   setNode((nd) => ({
                     ...nd,
-                    data: nd.data.map((x, i) => (i === idx ? newArg : x)),
+                    data: data.map((x, i) => (i === idx ? newArg : x)),
                   }));
                 }
               : undefined

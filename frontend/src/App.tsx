@@ -1,3 +1,5 @@
+import React from "react";
+
 export default function App() {
-  return <div>UI</div>;
+  return <p>A react extension is running at this URL.</p>;
 }

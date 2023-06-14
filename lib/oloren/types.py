@@ -63,6 +63,7 @@ class String(Type):
 
     Args:
         secret (bool): Defaults to False. Whether the input should be rendered as a secure password field.
+        paragraph (bool): Defaults to False. Whether the input should be rendered as a textarea.
 
     Example::
 
@@ -72,6 +73,7 @@ class String(Type):
     """
 
     secret: bool = False
+    paragraph: bool = False
 
 
 @dataclass
@@ -113,7 +115,7 @@ class File(Type):
     Represents a user input where they can upload a file. The file will be available in the function as a string path.
 
     Example::
-    
+
         @olo.register(description="Count the number of lines in a text file.")
         def line_counter(file=olo.File()):
             with open(file, "r") as f:
@@ -121,6 +123,7 @@ class File(Type):
     """
 
     pass
+
 
 @dataclass
 class Dir(Type):
@@ -140,7 +143,8 @@ class Func(Type):
     """
     Func: A class for defining a function input.
     """
-    
+
+
 @dataclass
 class Funcs(Type):
     """
@@ -170,6 +174,29 @@ class Option(Type):
 
     inner: Union[Choice, Num, File, Bool, String, Json]
     _type: Optional[str] = None
+
+
+@dataclass
+class VariableNumber(Type):
+    """
+    VariableNumber: A class for defining a list input.
+
+    Represents a user input where the user can dynamically change the number of inputs (e.g. a list of files,
+    a list of numbers, etc.)
+
+    Args:
+        inner (Type): The type of the elements of the list.
+        initial (int): The initial number of elements in the list. Defaults to 1.
+
+    Example::
+
+        @olo.register(description="Sum a list of numbers.")
+        def sum_list(numbers=olo.VariableNum(olo.Num(floating=False))):
+            return sum(numbers)
+    """
+
+    inner: Union[Choice, Num, File, Bool, String, Json, Option]
+    initial: int = 1
 
 
 @dataclass

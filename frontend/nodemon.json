@@ -1,0 +1,4 @@
+{
+  "watch": ["oloren.json", "webpack.config.js"],
+  "exec": "webpack --watch"
+}

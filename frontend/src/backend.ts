@@ -13,6 +13,7 @@ export interface Num {
 
 export interface String {
     secret: boolean;
+    paragraph: boolean;
 }
 
 export interface Bool {
@@ -36,13 +37,18 @@ export interface Funcs {
 
 export interface Option {
     inner: Choice | Num | File | Bool | String | Json;
-    _type: "Choice" | "Num" | "String" | "Bool" | "Json" | "File" | "Dir" | "Func" | "Funcs";
+    _type: "Choice" | "Num" | "String" | "Bool" | "Json" | "File" | "Dir" | "Func" | "Funcs" | "VariableNumber";
+}
+
+export interface VariableNumber {
+    inner: Choice | Num | File | Bool | String | Json | Option;
+    initial: number;
 }
 
 export interface Ty {
     name: string;
     ty: Choice | Num | File | Bool | String | Json | Option;
-    type: "Choice" | "Num" | "String" | "Bool" | "Json" | "File" | "Dir" | "Func" | "Funcs" | "Option";
+    type: "Choice" | "Num" | "String" | "Bool" | "Json" | "File" | "Dir" | "Func" | "Funcs" | "Option" | "VariableNumber";
 }
 
 export interface Config {

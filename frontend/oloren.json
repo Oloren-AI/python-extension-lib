@@ -1,0 +1,13 @@
+{
+  "$schema": "https://oloren-ai.github.io/schema/extensionconfig.schema.json",
+  "name": "testing",
+  "version": "0.0.0",
+  "nodes": [
+    {
+      "name": "Base Node",
+      "path": "./src/nodes/BaseNode.tsx",
+      "num_inputs": 0,
+      "num_outputs": 1
+    }
+  ]
+}
