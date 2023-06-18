@@ -407,10 +407,10 @@ def handler(event, context):
 
         with open(script, "a") as f:
             f.write("\n" + handler_source)
-        subprocess.run([sys.executable, "-m", "pip", "install", "awslambdaric"])
+        subprocess.run([sys.executable, "-m", "pip", "install", "awslambdaric"], timeout=900)
         return
     elif "MODE" in os.environ and os.environ["MODE"] == "LAMBDA":
-        subprocess.run([sys.executable, "-m", "awslambdaric", sys.argv[0].replace(".py", ".handler")], cwd=os.getcwd())
+        subprocess.run([sys.executable, "-m", "awslambdaric", sys.argv[0].replace(".py", ".handler")], cwd=os.getcwd(), timeout=900)
         return
 
     global EXTENSION_NAME
