@@ -1,39 +1,19 @@
-import {
-  Button,
-  Input,
-  InputNumber,
-  Popover,
-  Radio,
-  Segmented,
-  Select,
-  Switch,
-  Tooltip,
-  Typography,
-  Upload,
-} from "antd";
-import React, { useEffect, useRef, useState } from "react";
-import {
-  UploadOutlined,
-  DownloadOutlined,
-  LoginOutlined,
-  PlayCircleOutlined,
-  PicCenterOutlined,
-} from "@ant-design/icons";
-import { RcFile } from "antd/es/upload";
-import "./style.css";
+import { LoginOutlined, PicCenterOutlined, PlayCircleOutlined } from "@ant-design/icons";
+import { NodeProps, NodeSetter } from "@oloren/core";
+import { Input, InputNumber, Segmented, Select, Switch, Tooltip, Typography } from "antd";
 import "antd/dist/reset.css";
+import React, { useEffect, useRef } from "react";
 import {
+  String as BackendString,
   Bool,
   Choice,
+  Config,
   Num,
   Option,
   Ty,
-  String as BackendString,
-  Json as BackendJson,
   nullValue,
-  Config,
 } from "../backend";
-import { NodeProps, NodeSetter } from "@oloren/core";
+import "./style.css";
 
 interface RenderArgumentProps {
   idx: number;
