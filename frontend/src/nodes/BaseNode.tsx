@@ -95,7 +95,7 @@ function RenderArgument({
       setNode((nd) => {
         const newInputHandles: Handles = {
           ...(nd.input_handles ? nd.input_handles : {}),
-          [key]: (ref.current?.offsetTop ?? 0) - 28,
+          [key]: (ref.current?.offsetTop ?? 0) + 20,
         };
 
         return {
@@ -140,7 +140,7 @@ function RenderArgument({
       optional={true}
     />
   ) : (
-    <div className="flex flex-row space-x-2 items-center w-full" ref={ref}>
+    <div tw="flex flex-row space-x-2 items-center w-full" ref={ref}>
       <Segmented
         className="nodrag"
         onClick={(e) => {
@@ -156,7 +156,7 @@ function RenderArgument({
         options={[
           {
             label: (
-              <Tooltip title="External Input">
+              <Tooltip title="External Input" placement="right">
                 <LoginOutlined tw="pt-[3px]" />
               </Tooltip>
             ),
@@ -164,7 +164,7 @@ function RenderArgument({
           },
           {
             label: (
-              <Tooltip title="UI Popup">
+              <Tooltip title="UI Popup" placement="right">
                 <PlayCircleOutlined tw="pt-[3px]" />
               </Tooltip>
             ),
@@ -173,7 +173,7 @@ function RenderArgument({
           },
           {
             label: (
-              <Tooltip title="Hardcode">
+              <Tooltip title="Hardcode" placement="right">
                 <PicCenterOutlined tw="pt-[3px]" />
               </Tooltip>
             ),

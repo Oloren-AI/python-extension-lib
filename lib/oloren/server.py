@@ -137,7 +137,7 @@ def get_directory_json():
                 "module": "Base Node",
                 "scope": EXTENSION_NAME,
                 "url": "/ui/remoteEntry.js",
-                "metadata": asdict(function[1]),
+                "metadata": {**asdict(function[1]), **{"path": "value"}},
             }
             for name, function in FUNCTIONS.items()
         ]
@@ -410,7 +410,9 @@ def handler(event, context):
         subprocess.run([sys.executable, "-m", "pip", "install", "awslambdaric"], timeout=900)
         return
     elif "MODE" in os.environ and os.environ["MODE"] == "LAMBDA":
-        subprocess.run([sys.executable, "-m", "awslambdaric", sys.argv[0].replace(".py", ".handler")], cwd=os.getcwd(), timeout=900)
+        subprocess.run(
+            [sys.executable, "-m", "awslambdaric", sys.argv[0].replace(".py", ".handler")], cwd=os.getcwd(), timeout=900
+        )
         return
 
     global EXTENSION_NAME
