@@ -1,14 +1,14 @@
 {
   "compilerOptions": {
-    "lib": ["DOM", "ES6"],
     "esModuleInterop": true,
     "sourceMap": true,
+    "lib": ["es2015", "DOM"],
     "strict": true,
     "baseUrl": ".",
     "paths": {
       "*": ["./@mf-types/*"]
     },
-    "jsx": "react-jsx"
+    "jsx": "react"
   },
   "include": ["src/**/*"]
 }

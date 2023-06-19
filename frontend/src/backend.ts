@@ -13,6 +13,7 @@ export interface Num {
 
 export interface String {
     secret: boolean;
+    paragraph: boolean;
 }
 
 export interface Bool {

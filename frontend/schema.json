@@ -1,0 +1,81 @@
+{
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "description": "The extension name."
+    },
+    "version": {
+      "type": "string",
+      "description": "The extension version in semver format (e.g. 1.0.0).",
+      "default": "0.0.0"
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The node name."
+          },
+          "path": {
+            "type": "string",
+            "description": "The path to the module in the extension (e.g. 'src/Node.tsx')."
+          },
+          "operator": {
+            "type": "string",
+            "description": "Node operator, if app is specified, this is ignored."
+          },
+          "applet": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "The path to the applet module."
+              },
+              "hidden": {
+                "type": "boolean",
+                "default": false,
+                "description": "If hidden, the applet will run on the client side without generating UI."
+              },
+              "continue": {
+                "type": "boolean",
+                "default": true,
+                "description": "If set to false, the continue button on the applet will be hidden. The applet will have to manually call done() to continue."
+              }
+            },
+            "required": ["path"],
+            "additionalProperties": false,
+            "description": "If this node launches an applet, the path of the corresponding applet node."
+          },
+          "num_inputs": {
+            "type": "number",
+            "default": 1,
+            "description": "Initial number of inputs."
+          },
+          "num_outputs": {
+            "type": "number",
+            "default": 1,
+            "description": "Initial number of outputs."
+          },
+          "initial_data": {
+            "default": {},
+            "description": "Initial number of outputs."
+          },
+          "metadata": {
+            "description": "Node metadata (can insert anything here)."
+          }
+        },
+        "required": ["name", "path"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["name", "nodes"],
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

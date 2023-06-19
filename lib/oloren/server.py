@@ -85,6 +85,7 @@ def register(name="", description="", num_outputs=1):
                 print(f"Error in function {func.__name__}: {e}")
                 traceback.print_exc()
                 raise e
+
         FUNCTIONS[func.__name__] = (wrappedFunc, config)
 
         return func
@@ -136,7 +137,7 @@ def get_directory_json():
                 "module": "Base Node",
                 "scope": EXTENSION_NAME,
                 "url": "/ui/remoteEntry.js",
-                "metadata": asdict(function[1]),
+                "metadata": {**asdict(function[1]), **{"path": "value"}},
             }
             for name, function in FUNCTIONS.items()
         ]
@@ -180,15 +181,17 @@ def timeout(seconds=100, error_message=os.strerror(errno.ETIME)):
 import uuid
 
 
-def run_blue_node(graph, node_id, dispatcher_url, inputs, uid = None, token = None):
-    assert token is not None, "Token must be provided, you likely need to assign the permission 'Run Graph Access` via the Extensions window"
+def run_blue_node(graph, node_id, dispatcher_url, inputs, uid=None, token=None):
+    assert (
+        token is not None
+    ), "Token must be provided, you likely need to assign the permission 'Run Graph Access` via the Extensions window"
     socket_url = dispatcher_url.replace("http://", "ws://").replace("https://", "wss://")
 
     socket = socketio.Client()
     maxId = max([outputId["id"] for outputId in graph["output_ids"]]) + 1
     if not uid:
         uid = str(uuid.uuid4())
-        
+
     newElements = [
         {
             "id": f"{uid}-input-{idx}",
@@ -199,26 +202,25 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, uid = None, token = No
         }
         for idx, inp in enumerate(inputs)
     ]
-    
+
     newGraph = [graph] + newElements
     newGraph = json.loads(json.dumps(newGraph))
     newGraph[0]["id"] = f"{uid}-graph"
     newGraph[0]["input_ids"] = [el["output_ids"][0] for el in newElements]
     output = None
     error = None
-    
-    socket.connect(socket_url, wait_timeout = 10)
-    
+
+    socket.connect(socket_url, wait_timeout=10)
+
     def on_extensionregister_response(*args):
         client_uuid = args[0]
         print(f"Client UUID: {client_uuid} running graph")
         response = requests.post(
             f"{dispatcher_url}/run_graph",
             data=json.dumps({"graph": newGraph, "uuid": client_uuid}),
-            headers={"Content-Type": "application/json",
-                     "Authorization": f"Bearer {token}"},
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
         )
-        
+
         if response.status_code != 200:
             raise Exception(response.text)
 
@@ -235,14 +237,15 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, uid = None, token = No
             elif node_data["status"] != "running":
                 socket.disconnect()
                 error = json.dumps(node_data)
-    
+
     socket.wait()
 
     if error:
         raise Exception(error)
     print(f"Done with blue node {output}")
     return output
-    
+
+
 # Replace this with a loop over your FUNCTIONS
 @app.route("/operator/<FUNCTION_NAME>", methods=["POST"])
 def operator(FUNCTION_NAME):
@@ -284,8 +287,10 @@ def download_from_signed_url(signed_url):
 
 def execute_function(dispatcher_url, body, FUNCTION_NAME):
     all_func = {}
+
     def my_run_graph(*args, graph=None):
         return run_blue_node(graph, body["id"], dispatcher_url, args, token=body["node"]["token"])
+
     try:
         inputs = [inp["value"] for inp in body["node"]["data"]]
 
@@ -315,11 +320,11 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
                 inputs[i] = partial(my_run_graph, graph=input_graph)
             elif FUNCTIONS[FUNCTION_NAME][1].args[i].type == "Funcs":
                 input_graphs = copy.deepcopy(inputs[i])
-                
+
                 my_funcs = {}
                 for j in range(len(input_graphs)):
                     my_funcs[j] = partial(my_run_graph, graph=input_graphs[j])
-                    
+
                 inputs[i] = my_funcs
 
             if input == NULL_VALUE:
@@ -405,7 +410,9 @@ def handler(event, context):
         subprocess.run([sys.executable, "-m", "pip", "install", "awslambdaric"], timeout=900)
         return
     elif "MODE" in os.environ and os.environ["MODE"] == "LAMBDA":
-        subprocess.run([sys.executable, "-m", "awslambdaric", sys.argv[0].replace(".py", ".handler")], cwd=os.getcwd(), timeout=900)
+        subprocess.run(
+            [sys.executable, "-m", "awslambdaric", sys.argv[0].replace(".py", ".handler")], cwd=os.getcwd(), timeout=900
+        )
         return
 
     global EXTENSION_NAME
@@ -466,21 +473,22 @@ def handler(event, context):
 
     return "Ok"
 
+
 def upload_file(file_path):
     """
     This function uploads a file to Orchestrator and returns the file S3 json.
     """
     # Ensure the file exists
     try:
-        with open(file_path, 'rb') as f:
+        with open(file_path, "rb") as f:
             pass
     except FileNotFoundError:
         print(f"No file found at path: {file_path}")
         return
 
     # Open the file in binary mode and upload it
-    with open(file_path, 'rb') as f:
-        files = {'file': f}
+    with open(file_path, "rb") as f:
+        files = {"file": f}
         upload_url = f"{dispatcher_url}/upload"
         response = requests.post(upload_url, files=files)
 
@@ -490,7 +498,6 @@ def upload_file(file_path):
         return response.json()
     else:
         print(f"File upload failed with status code: {response.status_code}")
-
 
 
 __all__ = ["register", "run", "handler", "upload_file"]
