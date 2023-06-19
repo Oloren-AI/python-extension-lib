@@ -177,29 +177,6 @@ class Option(Type):
 
 
 @dataclass
-class VariableNumber(Type):
-    """
-    VariableNumber: A class for defining a list input.
-
-    Represents a user input where the user can dynamically change the number of inputs (e.g. a list of files,
-    a list of numbers, etc.)
-
-    Args:
-        inner (Type): The type of the elements of the list.
-        initial (int): The initial number of elements in the list. Defaults to 1.
-
-    Example::
-
-        @olo.register(description="Sum a list of numbers.")
-        def sum_list(numbers=olo.VariableNum(olo.Num(floating=False))):
-            return sum(numbers)
-    """
-
-    inner: Union[Choice, Num, File, Bool, String, Json, Option]
-    initial: int = 1
-
-
-@dataclass
 class Ty(Interface):
     name: str
     ty: Union[Choice, Num, File, Bool, String, Json, Option]

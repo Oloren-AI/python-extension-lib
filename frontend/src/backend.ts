@@ -37,18 +37,13 @@ export interface Funcs {
 
 export interface Option {
     inner: Choice | Num | File | Bool | String | Json;
-    _type: "Choice" | "Num" | "String" | "Bool" | "Json" | "File" | "Dir" | "Func" | "Funcs" | "VariableNumber";
-}
-
-export interface VariableNumber {
-    inner: Choice | Num | File | Bool | String | Json | Option;
-    initial: number;
+    _type: "Choice" | "Num" | "String" | "Bool" | "Json" | "File" | "Dir" | "Func" | "Funcs";
 }
 
 export interface Ty {
     name: string;
     ty: Choice | Num | File | Bool | String | Json | Option;
-    type: "Choice" | "Num" | "String" | "Bool" | "Json" | "File" | "Dir" | "Func" | "Funcs" | "Option" | "VariableNumber";
+    type: "Choice" | "Num" | "String" | "Bool" | "Json" | "File" | "Dir" | "Func" | "Funcs" | "Option";
 }
 
 export interface Config {
