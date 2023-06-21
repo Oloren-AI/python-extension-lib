@@ -478,6 +478,7 @@ def upload_file(file_path):
     """
     This function uploads a file to Orchestrator and returns the file S3 json.
     """
+    global dispatcher_url
     # Ensure the file exists
     try:
         with open(file_path, "rb") as f:
