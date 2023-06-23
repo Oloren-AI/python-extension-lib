@@ -11,7 +11,6 @@ except ImportError:
 class Type(Interface):
     pass
 
-
 @dataclass
 class Choice(Type):
     """
@@ -174,6 +173,7 @@ class Option(Type):
 
     inner: Union[Choice, Num, File, Bool, String, Json]
     _type: Optional[str] = None
+    default: Any = None
 
 
 @dataclass
@@ -181,6 +181,7 @@ class Ty(Interface):
     name: str
     ty: Union[Choice, Num, File, Bool, String, Json, Option]
     type: str
+    default: Any = None
 
 
 @dataclass

@@ -70,8 +70,9 @@ def register(name="", description="", num_outputs=1):
 
             if isinstance(param.default, Option):
                 param.default._type = param.default.inner.__class__.__name__
-
-            config.args.append(Ty(param.name, param.default, type=param.default.__class__.__name__))
+                config.args.append(Ty(param.name, param.default, type=param.default.__class__.__name__, default = param.default.default))
+            else:
+                config.args.append(Ty(param.name, param.default, type=param.default.__class__.__name__, default = None))
 
         def wrappedFunc(*args, **kwargs):
             try:
@@ -257,6 +258,7 @@ def operator(FUNCTION_NAME):
         body["id"]
 
         dispatcher_url = body.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
+        print(f"{FUNCTION_NAME} OPERATOR CALLED WITH Dispatcher URL: {dispatcher_url}")
 
         t = threading.Thread(target=execute_function, args=(dispatcher_url, body, FUNCTION_NAME))
         t.start()
@@ -285,7 +287,9 @@ def download_from_signed_url(signed_url):
     return tmp_file.name
 
 
-def execute_function(dispatcher_url, body, FUNCTION_NAME):
+def execute_function(dispatcher_url_, body, FUNCTION_NAME):
+    global dispatcher_url
+    dispatcher_url = dispatcher_url_
     all_func = {}
 
     def my_run_graph(*args, graph=None):
@@ -328,7 +332,7 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
                 inputs[i] = my_funcs
 
             if input == NULL_VALUE:
-                inputs[i] = None
+                inputs[i] = FUNCTIONS[FUNCTION_NAME][1].args[i].default
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             os.chdir(tmp_dir)
@@ -479,6 +483,7 @@ def upload_file(file_path):
     This function uploads a file to Orchestrator and returns the file S3 json.
     """
     global dispatcher_url
+    print("UPLOAD_FILE DISPATCHER_URL IS ", dispatcher_url)
     # Ensure the file exists
     try:
         with open(file_path, "rb") as f:
