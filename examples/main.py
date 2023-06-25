@@ -13,6 +13,14 @@ def operation(operation=olo.Choice(["Add", "Subtract", "Multiply", "Divide"]), a
     elif operation == "Divide":
         return a / b
 
+@olo.register()
+def log_message_test(log_message=print):
+    print(log_message)
+    log_message("START TEST")
+    for i in range(10):
+        log_message(f"i = {i}")
+    return "OK"
+    
 
 @olo.register()
 def sample(a=olo.Option(olo.String()), b=olo.String()):

@@ -31,6 +31,28 @@ session = requests.Session()
 FUNCTIONS: Dict[str, Tuple[Callable, Config]] = {}
 EXTENSION_NAME = ""
 
+def log_message(dispatcher_url, myUuid, progressId, level, message):
+    print("POSTING LOG MESSAGE to PROGRESS")
+    response = requests.post(f"{dispatcher_url}/node_progress", 
+            headers={"Content-Type": "application/json"},
+            json={
+        "progressId": progressId,
+        "level": level,
+        "type": "message",
+        "data": {"message": message},
+        "uuid": myUuid,
+    })
+    
+    print(f"LOG: {message}")
+    print(f"log message response: {response.status_code} {response.text}")
+    
+def get_log_message_function(dispatcher_url, myUuid):
+    
+    def log(message, level=1):
+        print(f"LOGging message def log: {message}")
+        log_message(dispatcher_url, myUuid, str(uuid.uuid4()), level, message)
+        
+    return log
 
 def register(name="", description="", num_outputs=1):
     """Register a function as an extension.
@@ -52,6 +74,7 @@ def register(name="", description="", num_outputs=1):
     """
 
     def decorator(func):
+        global dispatcher_url
         signature = inspect.signature(func)
 
         config = Config(
@@ -62,7 +85,9 @@ def register(name="", description="", num_outputs=1):
             description=description if description != "" else None,
         )
 
-        for param in signature.parameters.values():
+        for param_key, param in zip(signature.parameters.keys(), signature.parameters.values()):
+            if param_key == "log_message":
+                continue
             if isinstance(param.default, type):
                 raise TypeError("Default values for parameters must be literals.")
             if not isinstance(param.default, Type):
@@ -74,11 +99,11 @@ def register(name="", description="", num_outputs=1):
             else:
                 config.args.append(Ty(param.name, param.default, type=param.default.__class__.__name__, default = None))
 
-        def wrappedFunc(*args, **kwargs):
+        def wrappedFunc(*args, log_message = None, **kwargs):
             try:
                 print(f"Running function {func.__name__}", flush=True)
                 start_time = time.time()
-                y = func(*args, **kwargs)
+                y = func(*args, log_message=log_message, **kwargs)
                 end_time = time.time()
                 print(f"Finished function {func.__name__} in {end_time - start_time} seconds", flush=True)
                 return y
@@ -181,14 +206,34 @@ def timeout(seconds=100, error_message=os.strerror(errno.ETIME)):
 
 import uuid
 
+def connect_to_socket(dispatcher_url, max_retries=3, wait_timeout=10):
+    socket_url = dispatcher_url.replace("http://", "ws://").replace("https://", "wss://")
+
+    socket = socketio.Client()
+
+    retries = 0
+    while retries <= max_retries:
+        try:
+            socket.connect(socket_url, wait_timeout=wait_timeout)
+            print("Connected successfully.")
+            return socket
+        except Exception as e:
+            print(f"Exception occurred: {e}")
+            retries += 1
+            wait = 2 ** retries  # exponential backoff
+            print(f"Retrying in {wait} seconds.")
+            time.sleep(wait)
+
+    print(f"Failed to connect after {max_retries} retries.")
+    return None
 
 def run_blue_node(graph, node_id, dispatcher_url, inputs, uid=None, token=None):
     assert (
         token is not None
     ), "Token must be provided, you likely need to assign the permission 'Run Graph Access` via the Extensions window"
-    socket_url = dispatcher_url.replace("http://", "ws://").replace("https://", "wss://")
 
-    socket = socketio.Client()
+    socket = connect_to_socket(dispatcher_url)
+
     maxId = max([outputId["id"] for outputId in graph["output_ids"]]) + 1
     if not uid:
         uid = str(uuid.uuid4())
@@ -210,8 +255,6 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, uid=None, token=None):
     newGraph[0]["input_ids"] = [el["output_ids"][0] for el in newElements]
     output = None
     error = None
-
-    socket.connect(socket_url, wait_timeout=10)
 
     def on_extensionregister_response(*args):
         client_uuid = args[0]
@@ -290,6 +333,7 @@ def download_from_signed_url(signed_url):
 def execute_function(dispatcher_url_, body, FUNCTION_NAME):
     global dispatcher_url
     dispatcher_url = dispatcher_url_
+    
     all_func = {}
 
     def my_run_graph(*args, graph=None):
@@ -336,8 +380,10 @@ def execute_function(dispatcher_url_, body, FUNCTION_NAME):
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             os.chdir(tmp_dir)
-
-            outputs = FUNCTIONS[FUNCTION_NAME][0](*inputs)
+            print(f"Running {FUNCTION_NAME} with body {body}")
+            log_message_func = get_log_message_function(dispatcher_url_, body["uuid"])
+            print(f"Log message function: {log_message_func}")
+            outputs = FUNCTIONS[FUNCTION_NAME][0](*inputs, log_message=log_message_func)
 
             if isinstance(outputs, tuple):
                 outputs = list(outputs)
@@ -477,6 +523,8 @@ def handler(event, context):
 
     return "Ok"
 
+def print_message(message):
+    pass
 
 def upload_file(file_path):
     """
