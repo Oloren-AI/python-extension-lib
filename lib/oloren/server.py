@@ -94,8 +94,10 @@ def register(name="", description="", num_outputs=1):
             description=description if description != "" else None,
         )
 
+        log_message_on = False
         for param_key, param in zip(signature.parameters.keys(), signature.parameters.values()):
             if param_key == "log_message":
+                log_message_on = True
                 continue
             if isinstance(param.default, type):
                 raise TypeError("Default values for parameters must be literals.")
@@ -112,7 +114,10 @@ def register(name="", description="", num_outputs=1):
             try:
                 print(f"Running function {func.__name__}", flush=True)
                 start_time = time.time()
-                y = func(*args, log_message=log_message, **kwargs)
+                if log_message_on:
+                    y = func(*args, log_message=log_message, **kwargs)
+                else:
+                    y = func(*args, **kwargs)
                 end_time = time.time()
                 print(f"Finished function {func.__name__} in {end_time - start_time} seconds", flush=True)
                 return y
