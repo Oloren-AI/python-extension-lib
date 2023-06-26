@@ -19,6 +19,7 @@ import subprocess
 import sys
 import zipfile
 import socketio
+import asyncio
 from functools import partial
 
 
@@ -31,20 +32,28 @@ session = requests.Session()
 FUNCTIONS: Dict[str, Tuple[Callable, Config]] = {}
 EXTENSION_NAME = ""
 
-def log_message(dispatcher_url, myUuid, progressId, level, message):
+import threading
+
+def post_log_message(dispatcher_url, myUuid, progressId, level, message):
     print("POSTING LOG MESSAGE to PROGRESS")
-    response = requests.post(f"{dispatcher_url}/node_progress", 
-            headers={"Content-Type": "application/json"},
-            json={
-        "progressId": progressId,
-        "level": level,
-        "type": "message",
-        "data": {"message": message},
-        "uuid": myUuid,
-    })
-    
+    response = requests.post(f"{dispatcher_url}/node_progress",
+        headers={"Content-Type": "application/json"},
+        json={
+            "progressId": progressId,
+            "level": level,
+            "type": "message",
+            "data": {"message": message},
+            "uuid": myUuid,
+        }
+    )
+
     print(f"LOG: {message}")
     print(f"log message response: {response.status_code} {response.text}")
+
+def log_message(dispatcher_url, myUuid, progressId, level, message):
+    log_thread = threading.Thread(target=post_log_message, args=(dispatcher_url, myUuid, progressId, level, message))
+    log_thread.start()
+    print("Done logging message")
     
 def get_log_message_function(dispatcher_url, myUuid):
     
@@ -232,8 +241,6 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, uid=None, token=None):
         token is not None
     ), "Token must be provided, you likely need to assign the permission 'Run Graph Access` via the Extensions window"
 
-    socket = connect_to_socket(dispatcher_url)
-
     maxId = max([outputId["id"] for outputId in graph["output_ids"]]) + 1
     if not uid:
         uid = str(uuid.uuid4())
@@ -256,19 +263,24 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, uid=None, token=None):
     output = None
     error = None
 
+    done = {"status": False}
+    
     def on_extensionregister_response(*args):
         client_uuid = args[0]
         print(f"Client UUID: {client_uuid} running graph")
-        response = requests.post(
-            f"{dispatcher_url}/run_graph",
-            data=json.dumps({"graph": newGraph, "uuid": client_uuid}),
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
-        )
+        if not done["status"]:
+            response = requests.post(
+                f"{dispatcher_url}/run_graph",
+                data=json.dumps({"graph": newGraph, "uuid": client_uuid}),
+                headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
+            )
 
-        if response.status_code != 200:
-            raise Exception(response.text)
-
-    socket.emit("extensionregister", data={"id": node_id}, callback=on_extensionregister_response)
+            if response.status_code != 200:
+                raise Exception(response.text)
+            else:
+                done["status"] = True
+    
+    socket = connect_to_socket(dispatcher_url)
 
     @socket.on("node")
     def node(node_data):
@@ -281,7 +293,16 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, uid=None, token=None):
             elif node_data["status"] != "running":
                 socket.disconnect()
                 error = json.dumps(node_data)
-
+                
+    for i in range(5):
+        try:
+            socket.emit("extensionregister", data={"id": node_id}, callback=on_extensionregister_response)
+        except socketio.exceptions.BadNamespaceError:
+            print(f'Failed to emit to namespace. Retrying...')
+        time.sleep(0.5)
+        if done["status"]:
+            break
+    
     socket.wait()
 
     if error:
