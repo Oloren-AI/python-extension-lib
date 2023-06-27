@@ -20,8 +20,12 @@ def log_message_test(log_message=print):
     for i in range(10):
         log_message(f"i = {i}")
     return "OK"
-    
 
+@olo.register()
+def bool_test(bool_val = olo.Option(olo.Bool()), log_message=print):
+    log_message("bool_val = " + str(bool_val))
+    return bool_val
+    
 @olo.register()
 def sample(a=olo.Option(olo.String()), b=olo.String()):
     return f"a = {a} b = {b}"

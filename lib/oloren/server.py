@@ -400,9 +400,18 @@ def execute_function(dispatcher_url_, body, FUNCTION_NAME):
                     my_funcs[j] = partial(my_run_graph, graph=input_graphs[j])
 
                 inputs[i] = my_funcs
-
+            
+            print(f"Input: {input}")
+            print(f"Func input type: {FUNCTIONS[FUNCTION_NAME][1].args[i].type}")
+            print(f"Func input default: {FUNCTIONS[FUNCTION_NAME][1].args[i].default}")
+            print(f"Function arg: {FUNCTIONS[FUNCTION_NAME][1].args[i]}")
             if input == NULL_VALUE:
-                inputs[i] = FUNCTIONS[FUNCTION_NAME][1].args[i].default
+                if (FUNCTIONS[FUNCTION_NAME][1].args[i].type == "Option" and  
+                    FUNCTIONS[FUNCTION_NAME][1].args[i].ty._type == "Bool" and
+                    FUNCTIONS[FUNCTION_NAME][1].args[i].default is None):
+                    inputs[i] = False
+                else:
+                    inputs[i] = FUNCTIONS[FUNCTION_NAME][1].args[i].default
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             os.chdir(tmp_dir)
