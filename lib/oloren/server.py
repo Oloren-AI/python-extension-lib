@@ -57,9 +57,8 @@ def log_message(dispatcher_url, myUuid, progressId, level, message):
     
 def get_log_message_function(dispatcher_url, myUuid):
     
-    def log(message, level=1):
-        print(f"LOGging message def log: {message}")
-        log_message(dispatcher_url, myUuid, str(uuid.uuid4()), level, message)
+    def log(*messages, sep="", level=1):
+        log_message(dispatcher_url, myUuid, str(uuid.uuid4()), level, sep.join([str(x) for x in messages]))
         
     return log
 
