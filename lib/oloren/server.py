@@ -587,5 +587,31 @@ def upload_file(file_path):
     else:
         print(f"File upload failed with status code: {response.status_code}")
 
+def upload_file_purl(file_path):
+    """
+    This function uploads a file to Orchestrator and returns the file S3 json.
+    """
+    global dispatcher_url
+    print("UPLOAD_FILE DISPATCHER_URL IS ", dispatcher_url)
+    # Ensure the file exists
+    try:
+        with open(file_path, "rb") as f:
+            pass
+    except FileNotFoundError:
+        print(f"No file found at path: {file_path}")
+        return
+
+    # Open the file in binary mode and upload it
+    with open(file_path, "rb") as f:
+        files = {"file": f}
+        upload_url = f"{dispatcher_url}/upload_purl"
+        response = requests.post(upload_url, files=files)
+
+    # If the request was successful, print the response
+    if response.status_code == 200:
+        print(f"File uploaded successfully: {response.json()}")
+        return response.json()
+    else:
+        print(f"File upload failed with status code: {response.status_code}")
 
 __all__ = ["register", "run", "handler", "upload_file"]
