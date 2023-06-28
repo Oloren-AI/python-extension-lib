@@ -583,7 +583,7 @@ def upload_file(file_path):
     # If the request was successful, print the response
     if response.status_code == 200:
         print(f"File uploaded successfully: {response.json()}")
-        return response.json()
+        return response.json()[0]
     else:
         print(f"File upload failed with status code: {response.status_code}")
 
@@ -610,8 +610,8 @@ def upload_file_purl(file_path):
     # If the request was successful, print the response
     if response.status_code == 200:
         print(f"File uploaded successfully: {response.json()}")
-        return response.json()
+        return response.json()[0]
     else:
         print(f"File upload failed with status code: {response.status_code}")
 
-__all__ = ["register", "run", "handler", "upload_file"]
+__all__ = ["register", "run", "handler", "upload_file", "upload_file_purl"]
