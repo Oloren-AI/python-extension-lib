@@ -35,6 +35,10 @@ def sample(a=olo.Option(olo.String()), b=olo.String()):
 def read_file(file=olo.File()):
     return file
 
+@olo.register()
+def call(func = olo.Func(), input= olo.Json()):
+    return func(input)
+
 
 olo.run("exampleextension")
 

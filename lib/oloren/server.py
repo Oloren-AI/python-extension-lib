@@ -312,6 +312,7 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None,
             )
             break
         except Exception as e:
+            print(f"Exception occurred: {e} on extensionregister - retrying")
             if retries == max_retries - 1:
                 raise e
 
