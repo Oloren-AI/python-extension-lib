@@ -32,8 +32,6 @@ session = requests.Session()
 FUNCTIONS: Dict[str, Tuple[Callable, Config]] = {}
 EXTENSION_NAME = ""
 
-import threading
-
 
 def post_log_message(dispatcher_url, myUuid, progressId, level, message):
     print("POSTING LOG MESSAGE to PROGRESS")
@@ -101,6 +99,8 @@ def register(name="", description="", num_outputs=1):
         for param_key, param in zip(signature.parameters.keys(), signature.parameters.values()):
             if param_key == "log_message":
                 log_message_on = True
+                continue
+            if param_key == "map":
                 continue
             if isinstance(param.default, type):
                 raise TypeError("Default values for parameters must be literals.")
@@ -248,6 +248,42 @@ def connect_to_socket(dispatcher_url, max_retries=3, wait_timeout=10):
     return None
 
 
+import random
+
+
+class SocketManager:
+    def __init__(self):
+        self.connections = {}
+
+    def get_connection(self, client_uuid, dispatcher_url, node_id, after_connect_callback=None):
+        """Creates connection if it doesn't exist, otherwise returns existing connection
+
+        Returns:
+        (socketio.Client, uuid)
+        """
+
+        if client_uuid not in self.connections:
+            blue_node_uuid = str(uuid.uuid4())
+            socket = connect_to_socket(dispatcher_url)
+            socket.emit(
+                "extensionregister",
+                data={"uuid": blue_node_uuid, "node_id": node_id},
+                callback=lambda *args: after_connect_callback(blue_node_uuid),
+            )
+
+            self.connections[client_uuid] = (socket, blue_node_uuid)
+
+            return socket
+
+        socket, blue_node_uuid = self.connections[client_uuid]
+        if after_connect_callback is not None:
+            after_connect_callback(blue_node_uuid)
+        return socket
+
+
+manager = SocketManager()
+
+
 def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None, token=None):
     assert (
         token is not None
@@ -275,10 +311,12 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None,
     output = None
     error = None
 
+    import time
 
-    blue_node_uuid = str(uuid.uuid4())
+    start_time = time.time()
 
-    def on_extensionregister_response(*args):
+    def on_extensionregister_response(blue_node_uuid):
+        print(f"Run graph after {time.time() - start_time} seconds")
         response = requests.post(
             f"{dispatcher_url}/run_graph",
             data=json.dumps({"graph": newGraph, "uuid": blue_node_uuid}),
@@ -288,7 +326,9 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None,
         if response.status_code != 200:
             raise Exception(response.text)
 
-    socket = connect_to_socket(dispatcher_url)
+    socket = manager.get_connection(
+        client_uuid, dispatcher_url, node_id, after_connect_callback=on_extensionregister_response
+    )
 
     @socket.on("node")
     def node(node_data):
@@ -297,30 +337,15 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None,
             if node_data["status"] == "finished":
                 if len(node_data["data"]["output_ids"]) > 0:
                     output = node_data["output"]
-                socket.disconnect()
             elif node_data["status"] != "running":
-                socket.disconnect()
                 error = json.dumps(node_data)
 
-    max_retries = 3
-    for retries in range(max_retries):
-        try:
-            socket.emit(
-                "extensionregister",
-                data={"uuid": blue_node_uuid, "node_id": node_id},
-                callback=on_extensionregister_response,
-            )
-            break
-        except Exception as e:
-            if retries == max_retries - 1:
-                raise e
-
-    socket.wait()
-
-    if error:
-        raise Exception(error)
-    print(f"Done with blue node {output}")
-    return output
+    while True:
+        if output is not None:
+            return output
+        if error is not None:
+            raise Exception(error)
+        time.sleep(0.005)
 
 
 # Replace this with a loop over your FUNCTIONS
@@ -628,4 +653,44 @@ def upload_file_purl(file_path):
         print(f"File upload failed with status code: {response.status_code}")
 
 
-__all__ = ["register", "run", "handler", "upload_file", "upload_file_purl"]
+def map(lst, fn, batch_size=10):
+    """Convenience function to maps a function over a list of inputs.
+
+    Args:
+        lst (List): The list of inputs.
+        fn (Callable): The function to map over the list.
+        batch_size (Optional[int]): The number of inputs to process in parallel. Defaults to 10.
+    """
+
+    if batch_size is None:
+        batch_size = len(lst)
+
+    results = [None] * len(lst)
+    lock = threading.Lock()
+
+    def map_thread(i):
+        result = fn(lst[i])
+        with lock:
+            results[i] = result
+
+    # Initialize the list that will store our threads
+    threads = []
+
+    for i in range(0, len(lst), batch_size):
+        # Create a batch of threads
+        for j in range(i, min(i + batch_size, len(lst))):
+            thread = threading.Thread(target=map_thread, args=(j,))
+            thread.start()
+            threads.append(thread)
+
+        # Wait for the current batch of threads to complete before moving on
+        for thread in threads:
+            thread.join()
+
+        # Clear the threads list so we can start the next batch
+        threads = []
+
+    return results
+
+
+__all__ = ["register", "run", "handler", "upload_file", "upload_file_purl", "map"]

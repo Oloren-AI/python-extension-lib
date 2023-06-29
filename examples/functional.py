@@ -16,25 +16,8 @@ import threading
 
 
 @olo.register()
-def map(lst=olo.String(), fn=olo.Func()):
-    results = [None] * len(lst)
-    lock = threading.Lock()
-
-    def map_thread(i):
-        result = fn(lst[i])
-        with lock:
-            results[i] = result
-
-    threads = []
-    for i in range(len(lst)):
-        thread = threading.Thread(target=map_thread, args=(i,))
-        thread.start()
-        threads.append(thread)
-
-    for thread in threads:
-        thread.join()
-
-    return results
+def map(lst=olo.String(), fn=olo.Func(), map=None):
+    return olo.map(lst, fn, batch_size=None)
 
 
 olo.run("functional")
