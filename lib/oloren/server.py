@@ -34,9 +34,11 @@ EXTENSION_NAME = ""
 
 import threading
 
+
 def post_log_message(dispatcher_url, myUuid, progressId, level, message):
     print("POSTING LOG MESSAGE to PROGRESS")
-    response = requests.post(f"{dispatcher_url}/node_progress",
+    response = requests.post(
+        f"{dispatcher_url}/node_progress",
         headers={"Content-Type": "application/json"},
         json={
             "progressId": progressId,
@@ -44,23 +46,25 @@ def post_log_message(dispatcher_url, myUuid, progressId, level, message):
             "type": "message",
             "data": {"message": message},
             "uuid": myUuid,
-        }
+        },
     )
 
     print(f"LOG: {message}")
     print(f"log message response: {response.status_code} {response.text}")
 
+
 def log_message(dispatcher_url, myUuid, progressId, level, message):
     log_thread = threading.Thread(target=post_log_message, args=(dispatcher_url, myUuid, progressId, level, message))
     log_thread.start()
     print("Done logging message")
-    
+
+
 def get_log_message_function(dispatcher_url, myUuid):
-    
     def log(*messages, sep="", level=1):
         log_message(dispatcher_url, myUuid, str(uuid.uuid4()), level, sep.join([str(x) for x in messages]))
-        
+
     return log
+
 
 def register(name="", description="", num_outputs=1):
     """Register a function as an extension.
@@ -105,11 +109,13 @@ def register(name="", description="", num_outputs=1):
 
             if isinstance(param.default, Option):
                 param.default._type = param.default.inner.__class__.__name__
-                config.args.append(Ty(param.name, param.default, type=param.default.__class__.__name__, default = param.default.default))
+                config.args.append(
+                    Ty(param.name, param.default, type=param.default.__class__.__name__, default=param.default.default)
+                )
             else:
-                config.args.append(Ty(param.name, param.default, type=param.default.__class__.__name__, default = None))
+                config.args.append(Ty(param.name, param.default, type=param.default.__class__.__name__, default=None))
 
-        def wrappedFunc(*args, log_message = None, **kwargs):
+        def wrappedFunc(*args, log_message=None, **kwargs):
             try:
                 print(f"Running function {func.__name__}", flush=True)
                 start_time = time.time()
@@ -219,6 +225,7 @@ def timeout(seconds=100, error_message=os.strerror(errno.ETIME)):
 
 import uuid
 
+
 def connect_to_socket(dispatcher_url, max_retries=3, wait_timeout=10):
     socket_url = dispatcher_url.replace("http://", "ws://").replace("https://", "wss://")
 
@@ -233,14 +240,15 @@ def connect_to_socket(dispatcher_url, max_retries=3, wait_timeout=10):
         except Exception as e:
             print(f"Exception occurred: {e}")
             retries += 1
-            wait = 2 ** retries  # exponential backoff
+            wait = 2**retries  # exponential backoff
             print(f"Retrying in {wait} seconds.")
             time.sleep(wait)
 
     print(f"Failed to connect after {max_retries} retries.")
     return None
 
-def run_blue_node(graph, node_id, dispatcher_url, inputs, uid=None, token=None):
+
+def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None, token=None):
     assert (
         token is not None
     ), "Token must be provided, you likely need to assign the permission 'Run Graph Access` via the Extensions window"
@@ -267,23 +275,19 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, uid=None, token=None):
     output = None
     error = None
 
-    done = {"status": False}
-    
-    def on_extensionregister_response(*args):
-        client_uuid = args[0]
-        print(f"Client UUID: {client_uuid} running graph")
-        if not done["status"]:
-            response = requests.post(
-                f"{dispatcher_url}/run_graph",
-                data=json.dumps({"graph": newGraph, "uuid": client_uuid}),
-                headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
-            )
 
-            if response.status_code != 200:
-                raise Exception(response.text)
-            else:
-                done["status"] = True
-    
+    blue_node_uuid = str(uuid.uuid4())
+
+    def on_extensionregister_response(*args):
+        response = requests.post(
+            f"{dispatcher_url}/run_graph",
+            data=json.dumps({"graph": newGraph, "uuid": blue_node_uuid}),
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
+        )
+
+        if response.status_code != 200:
+            raise Exception(response.text)
+
     socket = connect_to_socket(dispatcher_url)
 
     @socket.on("node")
@@ -297,16 +301,20 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, uid=None, token=None):
             elif node_data["status"] != "running":
                 socket.disconnect()
                 error = json.dumps(node_data)
-                
-    for i in range(5):
+
+    max_retries = 3
+    for retries in range(max_retries):
         try:
-            socket.emit("extensionregister", data={"id": node_id}, callback=on_extensionregister_response)
-        except socketio.exceptions.BadNamespaceError:
-            print(f'Failed to emit to namespace. Retrying...')
-        time.sleep(0.5)
-        if done["status"]:
+            socket.emit(
+                "extensionregister",
+                data={"uuid": blue_node_uuid, "node_id": node_id},
+                callback=on_extensionregister_response,
+            )
             break
-    
+        except Exception as e:
+            if retries == max_retries - 1:
+                raise e
+
     socket.wait()
 
     if error:
@@ -326,7 +334,7 @@ def operator(FUNCTION_NAME):
         body["id"]
 
         dispatcher_url = body.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
-        print(f"{FUNCTION_NAME} OPERATOR CALLED WITH Dispatcher URL: {dispatcher_url}")
+        # print(f"{FUNCTION_NAME} OPERATOR CALLED WITH Dispatcher URL: {dispatcher_url}")
 
         t = threading.Thread(target=execute_function, args=(dispatcher_url, body, FUNCTION_NAME))
         t.start()
@@ -358,11 +366,11 @@ def download_from_signed_url(signed_url):
 def execute_function(dispatcher_url_, body, FUNCTION_NAME):
     global dispatcher_url
     dispatcher_url = dispatcher_url_
-    
+
     all_func = {}
 
     def my_run_graph(*args, graph=None):
-        return run_blue_node(graph, body["id"], dispatcher_url, args, token=body["node"]["token"])
+        return run_blue_node(graph, body["id"], dispatcher_url, args, body["uuid"], token=body["node"]["token"])
 
     try:
         inputs = [inp["value"] for inp in body["node"]["data"]]
@@ -399,24 +407,26 @@ def execute_function(dispatcher_url_, body, FUNCTION_NAME):
                     my_funcs[j] = partial(my_run_graph, graph=input_graphs[j])
 
                 inputs[i] = my_funcs
-            
-            print(f"Input: {input}")
-            print(f"Func input type: {FUNCTIONS[FUNCTION_NAME][1].args[i].type}")
-            print(f"Func input default: {FUNCTIONS[FUNCTION_NAME][1].args[i].default}")
-            print(f"Function arg: {FUNCTIONS[FUNCTION_NAME][1].args[i]}")
+
+            # print(f"Input: {input}")
+            # print(f"Func input type: {FUNCTIONS[FUNCTION_NAME][1].args[i].type}")
+            # print(f"Func input default: {FUNCTIONS[FUNCTION_NAME][1].args[i].default}")
+            # print(f"Function arg: {FUNCTIONS[FUNCTION_NAME][1].args[i]}")
             if input == NULL_VALUE:
-                if (FUNCTIONS[FUNCTION_NAME][1].args[i].type == "Option" and  
-                    FUNCTIONS[FUNCTION_NAME][1].args[i].ty._type == "Bool" and
-                    FUNCTIONS[FUNCTION_NAME][1].args[i].default is None):
+                if (
+                    FUNCTIONS[FUNCTION_NAME][1].args[i].type == "Option"
+                    and FUNCTIONS[FUNCTION_NAME][1].args[i].ty._type == "Bool"
+                    and FUNCTIONS[FUNCTION_NAME][1].args[i].default is None
+                ):
                     inputs[i] = False
                 else:
                     inputs[i] = FUNCTIONS[FUNCTION_NAME][1].args[i].default
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             os.chdir(tmp_dir)
-            print(f"Running {FUNCTION_NAME} with body {body}")
+            # print(f"Running {FUNCTION_NAME} with body {body}")
             log_message_func = get_log_message_function(dispatcher_url_, body["uuid"])
-            print(f"Log message function: {log_message_func}")
+            # print(f"Log message function: {log_message_func}")
             outputs = FUNCTIONS[FUNCTION_NAME][0](*inputs, log_message=log_message_func)
 
             if isinstance(outputs, tuple):
@@ -557,8 +567,10 @@ def handler(event, context):
 
     return "Ok"
 
+
 def print_message(message):
     pass
+
 
 def upload_file(file_path):
     """
@@ -587,6 +599,7 @@ def upload_file(file_path):
     else:
         print(f"File upload failed with status code: {response.status_code}")
 
+
 def upload_file_purl(file_path):
     """
     This function uploads a file to Orchestrator and returns the file S3 json.
@@ -613,5 +626,6 @@ def upload_file_purl(file_path):
         return response.json()[0]
     else:
         print(f"File upload failed with status code: {response.status_code}")
+
 
 __all__ = ["register", "run", "handler", "upload_file", "upload_file_purl"]
