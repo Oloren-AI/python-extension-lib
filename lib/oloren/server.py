@@ -715,7 +715,8 @@ def map(lst, fn, batch_size=10):
 
     results = []
     for batch in batches:
-        results.extend(fn([_RESERVED_BATCH_KEY, batch]))
+        batch_result = fn([_RESERVED_BATCH_KEY, batch])
+        results.extend(batch_result[0][1])
 
     return results
 
