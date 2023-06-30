@@ -281,10 +281,26 @@ class SocketManager:
         return socket
 
 
+_RESERVED_INPUT_KEY = "INITIALIZE_SOCKET_RESERVED_ORCHESTRATOR_INPUT"
+
 manager = SocketManager()
 
 
 def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None, token=None):
+    if inputs[0] == _RESERVED_INPUT_KEY:
+        finished = False
+
+        def wait_finished(*args):
+            nonlocal finished
+            finished = True
+
+        socket = manager.get_connection(client_uuid, dispatcher_url, node_id, after_connect_callback=wait_finished)
+
+        while True:
+            if finished:
+                return
+            time.sleep(0.005)
+
     assert (
         token is not None
     ), "Token must be provided, you likely need to assign the permission 'Run Graph Access` via the Extensions window"
@@ -672,6 +688,8 @@ def map(lst, fn, batch_size=10):
         result = fn(lst[i])
         with lock:
             results[i] = result
+
+    fn(_RESERVED_INPUT_KEY)  # initialize socket
 
     # Initialize the list that will store our threads
     threads = []
