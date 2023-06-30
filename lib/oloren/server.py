@@ -288,87 +288,92 @@ _RESERVED_INPUT_KEY = "INITIALIZE_SOCKET_RESERVED_ORCHESTRATOR_INPUT"
 manager = SocketManager()
 
 
-def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None, token=None):
-    if len(inputs) == 1 and inputs[0] == _RESERVED_INPUT_KEY:
-        finished = False
+def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None, token=None, retries=3):
+    if retries == 0: raise Exception("Failed to run blue node")
+    try:
+        if len(inputs) == 1 and inputs[0] == _RESERVED_INPUT_KEY:
+            finished = False
 
-        def wait_finished(*args):
-            nonlocal finished
-            finished = True
+            def wait_finished(*args):
+                nonlocal finished
+                finished = True
 
-        socket = manager.get_connection(client_uuid, dispatcher_url, node_id, after_connect_callback=wait_finished)
+            socket = manager.get_connection(client_uuid, dispatcher_url, node_id, after_connect_callback=wait_finished)
 
-        while True:
-            if finished:
-                return
-            time.sleep(0.005)
+            while True:
+                if finished:
+                    return
+                time.sleep(0.005)
 
-    assert (
-        token is not None
-    ), "Token must be provided, you likely need to assign the permission 'Run Graph Access` via the Extensions window"
+        assert (
+            token is not None
+        ), "Token must be provided, you likely need to assign the permission 'Run Graph Access` via the Extensions window"
 
-    maxId = max([outputId["id"] for outputId in graph["output_ids"]]) + 1
-    if not uid:
-        uid = str(uuid.uuid4())
+        maxId = max([outputId["id"] for outputId in graph["output_ids"]]) + 1
+        if not uid:
+            uid = str(uuid.uuid4())
 
-    newElements = [
-        {
-            "id": f"{uid}-input-{idx}",
-            "data": inp,
-            "operator": "extractdata",
-            "input_ids": [],
-            "output_ids": [{"id": maxId + idx}],
-        }
-        for idx, inp in enumerate(inputs)
-    ]
+        newElements = [
+            {
+                "id": f"{uid}-input-{idx}",
+                "data": inp,
+                "operator": "extractdata",
+                "input_ids": [],
+                "output_ids": [{"id": maxId + idx}],
+            }
+            for idx, inp in enumerate(inputs)
+        ]
 
-    newGraph = [graph] + newElements
-    newGraph = json.loads(json.dumps(newGraph))
-    newGraph[0]["id"] = f"{uid}-graph"
-    newGraph[0]["input_ids"] = [el["output_ids"][0] for el in newElements]
+        newGraph = [graph] + newElements
+        newGraph = json.loads(json.dumps(newGraph))
+        newGraph[0]["id"] = f"{uid}-graph"
+        newGraph[0]["input_ids"] = [el["output_ids"][0] for el in newElements]
 
-    print(newGraph[0]["input_ids"])
-    print(inputs)
-    print("GRAPH:")
-    print(graph)
+        print(newGraph[0]["input_ids"])
+        print(inputs)
+        print("GRAPH:")
+        print(graph)
 
-    output = None
-    error = None
+        output = None
+        error = None
 
-    start_time = time.time()
+        start_time = time.time()
 
-    def on_extensionregister_response(blue_node_uuid):
-        print(f"Run graph after {time.time() - start_time} seconds")
-        response = requests.post(
-            f"{dispatcher_url}/run_graph",
-            data=json.dumps({"graph": newGraph, "uuid": blue_node_uuid}),
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
+        def on_extensionregister_response(blue_node_uuid):
+            print(f"Run graph after {time.time() - start_time} seconds")
+            response = requests.post(
+                f"{dispatcher_url}/run_graph",
+                data=json.dumps({"graph": newGraph, "uuid": blue_node_uuid}),
+                headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
+            )
+
+            if response.status_code != 200:
+                raise Exception(response.text)
+
+        socket = manager.get_connection(
+            client_uuid, dispatcher_url, node_id, after_connect_callback=on_extensionregister_response
         )
 
-        if response.status_code != 200:
-            raise Exception(response.text)
-
-    socket = manager.get_connection(
-        client_uuid, dispatcher_url, node_id, after_connect_callback=on_extensionregister_response
-    )
-
-    @socket.on("node")
-    def node(node_data):
-        nonlocal output, error
-        if f"{uid}-graph" == node_data["data"]["id"]:
-            if node_data["status"] == "finished":
-                if len(node_data["data"]["output_ids"]) > 0:
-                    output = node_data["output"]
-            elif node_data["status"] != "running":
-                error = json.dumps(node_data)
-
-    while True:
-        if output is not None:
-            return output
-        if error is not None:
-            raise Exception(error)
-        time.sleep(0.005)
-
+        @socket.on("node")
+        def node(node_data):
+            nonlocal output, error
+            if f"{uid}-graph" == node_data["data"]["id"]:
+                if node_data["status"] == "finished":
+                    if len(node_data["data"]["output_ids"]) > 0:
+                        output = node_data["output"]
+                elif node_data["status"] != "running":
+                    error = json.dumps(node_data)
+        timeout = 120/0.005
+        while True:
+            if timeout <= 0: raise Exception("Timeout")
+            if output is not None:
+                return output
+            if error is not None:
+                raise Exception(error)
+            time.sleep(0.005)
+            timeout -= 1
+    except Exception as e:
+        return run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid, token, retries - 1)
 
 # Replace this with a loop over your FUNCTIONS
 @app.route("/operator/<FUNCTION_NAME>", methods=["POST"])
