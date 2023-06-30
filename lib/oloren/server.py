@@ -691,7 +691,7 @@ def map(lst, fn, batch_size=10):
     """Convenience function to maps a function over a list of inputs.
 
     Args:
-        lst (List): The list of inputs.
+        lst (List): The nested list of inputs.
         fn (Callable): The function to map over the list.
         batch_size (Optional[int]): The number of inputs to process in parallel. Defaults to 10. If set to None, will batch all inputs into a single batch.
     """
@@ -701,8 +701,8 @@ def map(lst, fn, batch_size=10):
     if batch_size is None:
         batch_size = len(lst)
 
-    # split list into batches of size batch_size
-    lst = [[x] for x in lst]
+    lst = [ [x] if not hasattr(x, "__iter__") else list(x) for x in lst ]
+
     batches = [lst[i : i + batch_size] for i in range(0, len(lst), batch_size)]
 
     results = []
