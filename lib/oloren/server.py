@@ -32,6 +32,8 @@ session = requests.Session()
 FUNCTIONS: Dict[str, Tuple[Callable, Config]] = {}
 EXTENSION_NAME = ""
 
+_RESERVED_BATCH_KEY = "RESERVED_OLOREN_KEYWORD_BATCH"
+
 
 def post_log_message(dispatcher_url, myUuid, progressId, level, message):
     print("POSTING LOG MESSAGE to PROGRESS")
@@ -287,7 +289,7 @@ manager = SocketManager()
 
 
 def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None, token=None):
-    if inputs[0] == _RESERVED_INPUT_KEY:
+    if len(inputs) == 1 and inputs[0] == _RESERVED_INPUT_KEY:
         finished = False
 
         def wait_finished(*args):
@@ -324,10 +326,14 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None,
     newGraph = json.loads(json.dumps(newGraph))
     newGraph[0]["id"] = f"{uid}-graph"
     newGraph[0]["input_ids"] = [el["output_ids"][0] for el in newElements]
+
+    print(newGraph[0]["input_ids"])
+    print(inputs)
+    print("GRAPH:")
+    print(graph)
+
     output = None
     error = None
-
-    import time
 
     start_time = time.time()
 
@@ -468,7 +474,19 @@ def execute_function(dispatcher_url_, body, FUNCTION_NAME):
             # print(f"Running {FUNCTION_NAME} with body {body}")
             log_message_func = get_log_message_function(dispatcher_url_, body["uuid"])
             # print(f"Log message function: {log_message_func}")
-            outputs = FUNCTIONS[FUNCTION_NAME][0](*inputs, log_message=log_message_func)
+
+            print("INPUTS ARE ", inputs)
+            if (
+                len(inputs) > 0
+                and type(inputs[0]) == list
+                and len(inputs[0]) > 0
+                and inputs[0][0] == _RESERVED_BATCH_KEY
+            ):
+                print("RUNNING BATCHED FUNCTION - inputs:")
+                print(inputs[0][1])
+                outputs = [FUNCTIONS[FUNCTION_NAME][0](*batch, log_message=log_message_func) for batch in inputs[0][1]]
+            else:
+                outputs = FUNCTIONS[FUNCTION_NAME][0](*inputs, log_message=log_message_func)
 
             if isinstance(outputs, tuple):
                 outputs = list(outputs)
@@ -675,38 +693,21 @@ def map(lst, fn, batch_size=10):
     Args:
         lst (List): The list of inputs.
         fn (Callable): The function to map over the list.
-        batch_size (Optional[int]): The number of inputs to process in parallel. Defaults to 10.
+        batch_size (Optional[int]): The number of inputs to process in parallel. Defaults to 10. If set to None, will batch all inputs into a single batch.
     """
+
+    fn(_RESERVED_INPUT_KEY)
 
     if batch_size is None:
         batch_size = len(lst)
 
-    results = [None] * len(lst)
-    lock = threading.Lock()
+    # split list into batches of size batch_size
+    lst = [[x] for x in lst]
+    batches = [lst[i : i + batch_size] for i in range(0, len(lst), batch_size)]
 
-    def map_thread(i):
-        result = fn(lst[i])
-        with lock:
-            results[i] = result
-
-    fn(_RESERVED_INPUT_KEY)  # initialize socket
-
-    # Initialize the list that will store our threads
-    threads = []
-
-    for i in range(0, len(lst), batch_size):
-        # Create a batch of threads
-        for j in range(i, min(i + batch_size, len(lst))):
-            thread = threading.Thread(target=map_thread, args=(j,))
-            thread.start()
-            threads.append(thread)
-
-        # Wait for the current batch of threads to complete before moving on
-        for thread in threads:
-            thread.join()
-
-        # Clear the threads list so we can start the next batch
-        threads = []
+    results = []
+    for batch in batches:
+        results.extend(fn([_RESERVED_BATCH_KEY, batch]))
 
     return results
 
