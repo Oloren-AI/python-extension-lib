@@ -709,7 +709,7 @@ def map(lst, fn, batch_size=10):
     if batch_size is None:
         batch_size = len(lst)
 
-    lst = [ [x] if not hasattr(x, "__iter__") else list(x) for x in lst ]
+    lst = [ [x] if not hasattr(x, "__iter__") and not isinstance(x, str) else list(x) for x in lst ]
 
     batches = [lst[i : i + batch_size] for i in range(0, len(lst), batch_size)]
 
