@@ -481,13 +481,13 @@ def execute_function(dispatcher_url_, body, FUNCTION_NAME):
                 and sum([inputs[i][0] == _RESERVED_BATCH_KEY if type(inputs[i]) == list and len(inputs[i]) > 0 else 0 for i in range(len(inputs))]) == 1
             ):
                 batch_idx = [i for i in range(len(inputs)) if inputs[i][0] == _RESERVED_BATCH_KEY][0]
-                outputs = [FUNCTIONS[FUNCTION_NAME][0](*(inputs[:i] + batch + inputs[i+1:]), log_message=log_message_func)\
-                    for batch in inputs[batch_idx][1]]
+                outputs = [_RESERVED_BATCH_KEY, [FUNCTIONS[FUNCTION_NAME][0](*(inputs[:i] + batch + inputs[i+1:]), log_message=log_message_func)\
+                    for batch in inputs[batch_idx][1]]]
             elif (
                 len(inputs) > 0
                 and sum([inputs[i][0] == _RESERVED_BATCH_KEY if type(inputs[i]) == list and len(inputs[i]) > 0 else 0 for i in range(len(inputs))]) == len(inputs)
             ):
-                outputs = [FUNCTIONS[FUNCTION_NAME][0](*batch, log_message=log_message_func) for batch in zip(*[inp[1] for inp in inputs])]
+                outputs = [_RESERVED_BATCH_KEY, [FUNCTIONS[FUNCTION_NAME][0](*batch, log_message=log_message_func) for batch in zip(*[inp[1] for inp in inputs])]]
             else:
                 outputs = FUNCTIONS[FUNCTION_NAME][0](*inputs, log_message=log_message_func)
 
