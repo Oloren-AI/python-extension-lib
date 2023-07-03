@@ -340,7 +340,6 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None,
         start_time = time.time()
 
         def on_extensionregister_response(blue_node_uuid):
-            print(f"Run graph after {time.time() - start_time} seconds")
             response = requests.post(
                 f"{dispatcher_url}/run_graph",
                 data=json.dumps({"graph": newGraph, "uuid": blue_node_uuid}),
@@ -349,6 +348,8 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None,
 
             if response.status_code != 200:
                 raise Exception(response.text)
+            else:
+                print(f"Successfully started graph {uid} in {time.time() - start_time} seconds")
 
         socket = manager.get_connection(
             client_uuid, dispatcher_url, node_id, after_connect_callback=on_extensionregister_response
@@ -362,7 +363,9 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None,
                     if len(node_data["data"]["output_ids"]) > 0:
                         output = node_data["output"]
                 elif node_data["status"] != "running":
+                    print("Received error on ", node_data["data"]["id"])
                     error = json.dumps(node_data)
+                    
         timeout = 120/0.005
         while True:
             if timeout <= 0: raise Exception("Timeout")
@@ -372,6 +375,7 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None,
                 raise Exception(error)
             time.sleep(0.005)
             timeout -= 1
+        
     except Exception as e:
         return run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid, token, retries - 1)
 
@@ -721,4 +725,4 @@ def map(lst, fn, batch_size=10):
     return results
 
 
-__all__ = ["register", "run", "handler", "upload_file", "upload_file_purl", "map"]
+__all__ = ["register", "run", "handler", "upload_file", "upload_file_purl", "download_from_signed_url", "map"]
