@@ -366,15 +366,15 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None,
                     print("Received error on ", node_data["data"]["id"])
                     error = json.dumps(node_data)
                     
-        timeout = 120/0.005
+        timeout_counter = timeout
         while True:
-            if timeout <= 0: raise Exception("Timeout")
+            if timeout_counter <= 0: raise Exception("Timeout")
             if output is not None:
                 return output
             if error is not None:
                 raise Exception(error)
             time.sleep(0.005)
-            timeout -= 1
+            timeout_counter -= 1
         
     except Exception as e:
         return run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid, token, retries - 1)
