@@ -22,7 +22,17 @@ import socketio
 import asyncio
 from functools import partial
 
+from contextlib import contextmanager
 
+@contextmanager
+def change_dir(destination):
+    try:
+        cwd = os.getcwd()  # get current directory
+        os.chdir(destination)  # change directory
+        yield
+    finally:
+        os.chdir(cwd)  # change back to original directory
+        
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "static"))
 app.secret_key = "catcocacolacatdog"
 CORS(app)
@@ -288,7 +298,7 @@ _RESERVED_INPUT_KEY = "INITIALIZE_SOCKET_RESERVED_ORCHESTRATOR_INPUT"
 manager = SocketManager()
 
 
-def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None, token=None, timeout=15*60, retries=3):
+def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None, token=None, timeout=15*60*200, retries=3):
     if retries == 0: raise Exception("Failed to run blue node")
     try:
         if len(inputs) == 1 and inputs[0] == _RESERVED_INPUT_KEY:
@@ -328,11 +338,6 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None,
         newGraph = json.loads(json.dumps(newGraph))
         newGraph[0]["id"] = f"{uid}-graph"
         newGraph[0]["input_ids"] = [el["output_ids"][0] for el in newElements]
-
-        print(newGraph[0]["input_ids"])
-        print(inputs)
-        print("GRAPH:")
-        print(graph)
 
         output = None
         error = None
@@ -377,11 +382,14 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None,
             timeout_counter -= 1
         
     except Exception as e:
-        return run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid, token, retries - 1)
+        print(f"Exception occurred: {e}")
+        return run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid, token, retries - 1, timeout=timeout)
 
 # Replace this with a loop over your FUNCTIONS
 @app.route("/operator/<FUNCTION_NAME>", methods=["POST"])
 def operator(FUNCTION_NAME):
+    start_dir = os.getcwd()
+    print("Starting in directory: ", start_dir)
     global dispatcher_url
     try:
         body = request.json
@@ -397,7 +405,7 @@ def operator(FUNCTION_NAME):
 
         response = jsonify("Ok")
         response.status_code = 200
-
+        print("Returning response")
         return response
     except Exception:
         error_msg = traceback.format_exc()
@@ -409,7 +417,8 @@ def operator(FUNCTION_NAME):
                 "error": error_msg,
             },
         )
-
+        print("Returning error")
+        return error_msg, 500
 
 def download_from_signed_url(signed_url):
     with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
@@ -428,12 +437,13 @@ def download_from_file_record(record, token=None):
     return download_from_signed_url(purl.json()[0]["url"])
 
 def execute_function(dispatcher_url_, body, FUNCTION_NAME):
+    print("Execute function called")
     global dispatcher_url
     dispatcher_url = dispatcher_url_
 
     all_func = {}
 
-    def my_run_graph(*args, graph=None, timeout=15*60):
+    def my_run_graph(*args, graph=None, timeout=15*60*200):
         return run_blue_node(graph, body["id"], dispatcher_url, args, body["uuid"], token=body["node"]["token"], timeout = timeout)
 
     try:
@@ -485,59 +495,65 @@ def execute_function(dispatcher_url_, body, FUNCTION_NAME):
                     inputs[i] = False
                 else:
                     inputs[i] = FUNCTIONS[FUNCTION_NAME][1].args[i].default
-
+        cur_dir = os.getcwd()
+        print("Current directory: ", cur_dir)
         with tempfile.TemporaryDirectory() as tmp_dir:
-            os.chdir(tmp_dir)
-            # print(f"Running {FUNCTION_NAME} with body {body}")
-            log_message_func = get_log_message_function(dispatcher_url_, body["uuid"])
-            # print(f"Log message function: {log_message_func}")
+            with change_dir(tmp_dir):
+                # print(f"Running {FUNCTION_NAME} with body {body}")
+                log_message_func = get_log_message_function(dispatcher_url_, body["uuid"])
+                # print(f"Log message function: {log_message_func}")
 
-            print("INPUTS ARE ", inputs)
-            if (
-                len(inputs) > 0
-                and sum([inputs[i][0] == _RESERVED_BATCH_KEY if type(inputs[i]) == list and len(inputs[i]) > 0 else 0 for i in range(len(inputs))]) == 1
-            ):
-                batch_idx = [i for i in range(len(inputs)) if inputs[i][0] == _RESERVED_BATCH_KEY][0]
-                outputs = [_RESERVED_BATCH_KEY, [FUNCTIONS[FUNCTION_NAME][0](*(inputs[:i] + batch + inputs[i+1:]), log_message=log_message_func)\
-                    for batch in inputs[batch_idx][1]]]
-            elif (
-                len(inputs) > 0
-                and sum([inputs[i][0] == _RESERVED_BATCH_KEY if type(inputs[i]) == list and len(inputs[i]) > 0 else 0 for i in range(len(inputs))]) == len(inputs)
-            ):
-                outputs = [_RESERVED_BATCH_KEY, [FUNCTIONS[FUNCTION_NAME][0](*batch, log_message=log_message_func) for batch in zip(*[inp[1] for inp in inputs])]]
-            else:
-                outputs = FUNCTIONS[FUNCTION_NAME][0](*inputs, log_message=log_message_func)
+                if (
+                    len(inputs) > 0
+                    and sum([inputs[i][0] == _RESERVED_BATCH_KEY if type(inputs[i]) == list and len(inputs[i]) > 0 else 0 for i in range(len(inputs))]) == 1
+                ):
+                    batch_idx = [i for i in range(len(inputs)) if inputs[i][0] == _RESERVED_BATCH_KEY][0]
+                    outputs = [_RESERVED_BATCH_KEY, [FUNCTIONS[FUNCTION_NAME][0](*(inputs[:i] + batch + inputs[i+1:]), log_message=log_message_func)\
+                        for batch in inputs[batch_idx][1]]]
+                elif (
+                    len(inputs) > 0
+                    and sum([inputs[i][0] == _RESERVED_BATCH_KEY if type(inputs[i]) == list and len(inputs[i]) > 0 else 0 for i in range(len(inputs))]) == len(inputs)
+                ):
+                    outputs = [_RESERVED_BATCH_KEY, [FUNCTIONS[FUNCTION_NAME][0](*batch, log_message=log_message_func) for batch in zip(*[inp[1] for inp in inputs])]]
+                else:
+                    outputs = FUNCTIONS[FUNCTION_NAME][0](*inputs, log_message=log_message_func)
 
-            if isinstance(outputs, tuple):
-                outputs = list(outputs)
-            else:
-                outputs = [outputs]
+                if isinstance(outputs, tuple):
+                    outputs = list(outputs)
+                else:
+                    outputs = [outputs]
 
-            # Convert output files
-            for i, output in enumerate(outputs):
-                if isinstance(output, OutputFile):
-                    with open(output.path, "rb") as file:
-                        outputs[i] = io.BytesIO(file.read())
+                # Convert output files
+                for i, output in enumerate(outputs):
+                    if isinstance(output, OutputFile):
+                        with open(output.path, "rb") as file:
+                            outputs[i] = io.BytesIO(file.read())
 
-            files = {i: output for i, output in enumerate(outputs) if isinstance(output, io.BytesIO)}
-            if len(files) > 0:
-                form_data = {
-                    "node": body["id"],
-                    "output": json.dumps([output if not isinstance(output, io.BytesIO) else "" for output in outputs]),
-                }
+                files = {i: output for i, output in enumerate(outputs) if isinstance(output, io.BytesIO)}
+                if len(files) > 0:
+                    form_data = {
+                        "node": body["id"],
+                        "output": json.dumps([output if not isinstance(output, io.BytesIO) else "" for output in outputs]),
+                    }
 
-                files = {str(i): f for i, f in enumerate(outputs) if isinstance(f, io.BytesIO)}
+                    files = {str(i): f for i, f in enumerate(outputs) if isinstance(f, io.BytesIO)}
 
-                response = requests.post(f"{dispatcher_url}/node_finished_file", data=form_data, files=files)
-            else:
-                response = requests.post(
-                    f"{dispatcher_url}/node_finished",
-                    headers={"Content-Type": "application/json"},
-                    json={"node": body["id"], "output": [output for output in outputs]},
-                )
+                    response = requests.post(f"{dispatcher_url}/node_finished_file", data=form_data, files=files)
 
+                    if response.status_code != 200:
+                        raise Exception(f"Failed to call node_finished_file on finish: {response.text}")
+                else:
+                    response = requests.post(
+                        f"{dispatcher_url}/node_finished",
+                        headers={"Content-Type": "application/json"},
+                        json={"node": body["id"], "output": [output for output in outputs]},
+                    )
+
+                    if response.status_code != 200:
+                        raise Exception(f"Failed to call node_finished on finish: {response.text}")
     except Exception:
         error_msg = traceback.format_exc()
+        print(error_msg)
         requests.post(
             f"{dispatcher_url}/node_error",
             headers={"Content-Type": "application/json"},
@@ -546,7 +562,7 @@ def execute_function(dispatcher_url_, body, FUNCTION_NAME):
                 "error": error_msg,
             },
         )
-
+    print("Done execute function")
 
 def run(name: str, port=4823):
     """Runs the extension. Launches a HTTP server at the specified port for development and port 80 for production.
