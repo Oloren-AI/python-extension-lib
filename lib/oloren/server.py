@@ -385,7 +385,8 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None,
         print(f"Exception occurred: {e}")
         return run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=uid, token=token, timeout=timeout, retries=retries-1)
 
-# Replace this with a loop over your FUNCTIONS
+from multiprocessing import Process, Manager
+
 @app.route("/operator/<FUNCTION_NAME>", methods=["POST"])
 def operator(FUNCTION_NAME):
     start_dir = os.getcwd()
@@ -398,10 +399,14 @@ def operator(FUNCTION_NAME):
         body["id"]
 
         dispatcher_url = body.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
-        # print(f"{FUNCTION_NAME} OPERATOR CALLED WITH Dispatcher URL: {dispatcher_url}")
 
-        t = threading.Thread(target=execute_function, args=(dispatcher_url, body, FUNCTION_NAME))
-        t.start()
+        # Using a Manager dict to share dispatcher_url across processes
+        with Manager() as manager:
+            shared_dict = manager.dict()
+            shared_dict["dispatcher_url"] = dispatcher_url
+
+            p = Process(target=execute_function, args=(shared_dict, body, FUNCTION_NAME))
+            p.start()
 
         response = jsonify("Ok")
         response.status_code = 200
