@@ -383,7 +383,7 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None,
         
     except Exception as e:
         print(f"Exception occurred: {e}")
-        return run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=uid, token=token, timeout=timeout, retries=retries-1):
+        return run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=uid, token=token, timeout=timeout, retries=retries-1)
 
 # Replace this with a loop over your FUNCTIONS
 @app.route("/operator/<FUNCTION_NAME>", methods=["POST"])
