@@ -288,7 +288,7 @@ _RESERVED_INPUT_KEY = "INITIALIZE_SOCKET_RESERVED_ORCHESTRATOR_INPUT"
 manager = SocketManager()
 
 
-def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None, token=None, retries=3):
+def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None, token=None, timeout=15*60, retries=3):
     if retries == 0: raise Exception("Failed to run blue node")
     try:
         if len(inputs) == 1 and inputs[0] == _RESERVED_INPUT_KEY:
@@ -418,6 +418,14 @@ def download_from_signed_url(signed_url):
             tmp_file.write(chunk)
     return tmp_file.name
 
+def download_from_file_record(record, token=None):
+    purl = requests.post(
+        f"{dispatcher_url}/get_purl",
+            data=json.dumps({"files": [record]}),
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
+        )
+    print(purl)
+    return download_from_signed_url(purl.json()[0]["url"])
 
 def execute_function(dispatcher_url_, body, FUNCTION_NAME):
     global dispatcher_url
@@ -425,8 +433,8 @@ def execute_function(dispatcher_url_, body, FUNCTION_NAME):
 
     all_func = {}
 
-    def my_run_graph(*args, graph=None):
-        return run_blue_node(graph, body["id"], dispatcher_url, args, body["uuid"], token=body["node"]["token"])
+    def my_run_graph(*args, graph=None, timeout=15*60):
+        return run_blue_node(graph, body["id"], dispatcher_url, args, body["uuid"], token=body["node"]["token"], timeout = timeout)
 
     try:
         inputs = [inp["value"] for inp in body["node"]["data"]]
