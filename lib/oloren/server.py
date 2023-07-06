@@ -400,13 +400,8 @@ def operator(FUNCTION_NAME):
 
         dispatcher_url = body.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
 
-        # Using a Manager dict to share dispatcher_url across processes
-        with Manager() as manager:
-            shared_dict = manager.dict()
-            shared_dict["dispatcher_url"] = dispatcher_url
-
-            p = Process(target=execute_function, args=(shared_dict, body, FUNCTION_NAME))
-            p.start()
+        p = Process(target=execute_function, args=(dispatcher_url, body, FUNCTION_NAME))
+        p.start()
 
         response = jsonify("Ok")
         response.status_code = 200
@@ -522,7 +517,7 @@ def execute_function(dispatcher_url_, body, FUNCTION_NAME):
                     outputs = [_RESERVED_BATCH_KEY, [FUNCTIONS[FUNCTION_NAME][0](*batch, log_message=log_message_func) for batch in zip(*[inp[1] for inp in inputs])]]
                 else:
                     outputs = FUNCTIONS[FUNCTION_NAME][0](*inputs, log_message=log_message_func)
-
+                print("Done running function with outputs: ", outputs)
                 if isinstance(outputs, tuple):
                     outputs = list(outputs)
                 else:
@@ -543,23 +538,25 @@ def execute_function(dispatcher_url_, body, FUNCTION_NAME):
 
                     files = {str(i): f for i, f in enumerate(outputs) if isinstance(f, io.BytesIO)}
 
-                    response = requests.post(f"{dispatcher_url}/node_finished_file", data=form_data, files=files)
+                    response = requests.post(f"{dispatcher_url_}/node_finished_file", data=form_data, files=files)
 
                     if response.status_code != 200:
+                        print(f"Failed to call node_finished_file on finish: {response.text}")
                         raise Exception(f"Failed to call node_finished_file on finish: {response.text}")
                 else:
                     response = requests.post(
-                        f"{dispatcher_url}/node_finished",
+                        f"{dispatcher_url_}/node_finished",
                         headers={"Content-Type": "application/json"},
                         json={"node": body["id"], "output": [output for output in outputs]},
                     )
 
                     if response.status_code != 200:
+                        print(f"Failed to call node_finished on finish: {response.text}")
                         raise Exception(f"Failed to call node_finished on finish: {response.text}")
     except Exception:
         error_msg = traceback.format_exc()
-        print(error_msg)
-        requests.post(
+        print("Posting error: ", error_msg)
+        response = requests.post(
             f"{dispatcher_url}/node_error",
             headers={"Content-Type": "application/json"},
             json={
@@ -567,6 +564,7 @@ def execute_function(dispatcher_url_, body, FUNCTION_NAME):
                 "error": error_msg,
             },
         )
+        print(f"Posting error response, status code: {response.status_code}, text: {response.text}")
     print("Done execute function")
 
 def run(name: str, port=4823):
