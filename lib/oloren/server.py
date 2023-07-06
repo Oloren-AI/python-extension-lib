@@ -24,6 +24,7 @@ from functools import partial
 
 from contextlib import contextmanager
 
+
 @contextmanager
 def change_dir(destination):
     try:
@@ -32,7 +33,8 @@ def change_dir(destination):
         yield
     finally:
         os.chdir(cwd)  # change back to original directory
-        
+
+
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "static"))
 app.secret_key = "catcocacolacatdog"
 CORS(app)
@@ -298,8 +300,11 @@ _RESERVED_INPUT_KEY = "INITIALIZE_SOCKET_RESERVED_ORCHESTRATOR_INPUT"
 manager = SocketManager()
 
 
-def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None, token=None, timeout=15*60*200, retries=3):
-    if retries == 0: raise Exception("Failed to run blue node")
+def run_blue_node(
+    graph, node_id, dispatcher_url, inputs, client_uuid, uid=None, token=None, timeout=15 * 60 * 200, retries=3
+):
+    if retries == 0:
+        raise Exception("Failed to run blue node")
     try:
         if len(inputs) == 1 and inputs[0] == _RESERVED_INPUT_KEY:
             finished = False
@@ -370,22 +375,35 @@ def run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=None,
                 elif node_data["status"] != "running":
                     print("Received error on ", node_data["data"]["id"])
                     error = json.dumps(node_data)
-                    
+
         timeout_counter = timeout
         while True:
-            if timeout_counter <= 0: raise Exception("Timeout")
+            if timeout_counter <= 0:
+                raise Exception("Timeout")
             if output is not None:
                 return output
             if error is not None:
                 raise Exception(error)
             time.sleep(0.005)
             timeout_counter -= 1
-        
+
     except Exception as e:
         print(f"Exception occurred: {e}")
-        return run_blue_node(graph, node_id, dispatcher_url, inputs, client_uuid, uid=uid, token=token, timeout=timeout, retries=retries-1)
+        return run_blue_node(
+            graph,
+            node_id,
+            dispatcher_url,
+            inputs,
+            client_uuid,
+            uid=uid,
+            token=token,
+            timeout=timeout,
+            retries=retries - 1,
+        )
+
 
 from multiprocessing import Process, Manager
+
 
 @app.route("/operator/<FUNCTION_NAME>", methods=["POST"])
 def operator(FUNCTION_NAME):
@@ -425,6 +443,7 @@ def operator(FUNCTION_NAME):
         print("Returning error")
         return error_msg, 500
 
+
 def download_from_signed_url(signed_url):
     with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
         response = requests.get(signed_url, stream=True)
@@ -432,14 +451,16 @@ def download_from_signed_url(signed_url):
             tmp_file.write(chunk)
     return tmp_file.name
 
+
 def download_from_file_record(record, token=None):
     purl = requests.post(
         f"{dispatcher_url}/get_purl",
-            data=json.dumps({"files": [record]}),
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
-        )
+        data=json.dumps({"files": [record]}),
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
+    )
     print(purl)
     return download_from_signed_url(purl.json()[0]["url"])
+
 
 def execute_function(dispatcher_url_, body, FUNCTION_NAME):
     print("Execute function called")
@@ -448,8 +469,10 @@ def execute_function(dispatcher_url_, body, FUNCTION_NAME):
 
     all_func = {}
 
-    def my_run_graph(*args, graph=None, timeout=15*60*200):
-        return run_blue_node(graph, body["id"], dispatcher_url, args, body["uuid"], token=body["node"]["token"], timeout = timeout)
+    def my_run_graph(*args, graph=None, timeout=15 * 60 * 200):
+        return run_blue_node(
+            graph, body["id"], dispatcher_url, args, body["uuid"], token=body["node"]["token"], timeout=timeout
+        )
 
     try:
         inputs = [inp["value"] for inp in body["node"]["data"]]
@@ -510,16 +533,37 @@ def execute_function(dispatcher_url_, body, FUNCTION_NAME):
 
                 if (
                     len(inputs) > 0
-                    and sum([inputs[i][0] == _RESERVED_BATCH_KEY if type(inputs[i]) == list and len(inputs[i]) > 0 else 0 for i in range(len(inputs))]) == 1
+                    and sum(
+                        [
+                            inputs[i][0] == _RESERVED_BATCH_KEY if type(inputs[i]) == list and len(inputs[i]) > 0 else 0
+                            for i in range(len(inputs))
+                        ]
+                    )
+                    == 1
                 ):
                     batch_idx = [i for i in range(len(inputs)) if inputs[i][0] == _RESERVED_BATCH_KEY][0]
-                    outputs = [_RESERVED_BATCH_KEY, [FUNCTIONS[FUNCTION_NAME][0](*(inputs[:i] + batch + inputs[i+1:]), log_message=log_message_func)\
-                        for batch in inputs[batch_idx][1]]]
-                elif (
-                    len(inputs) > 0
-                    and sum([inputs[i][0] == _RESERVED_BATCH_KEY if type(inputs[i]) == list and len(inputs[i]) > 0 else 0 for i in range(len(inputs))]) == len(inputs)
-                ):
-                    outputs = [_RESERVED_BATCH_KEY, [FUNCTIONS[FUNCTION_NAME][0](*batch, log_message=log_message_func) for batch in zip(*[inp[1] for inp in inputs])]]
+                    outputs = [
+                        _RESERVED_BATCH_KEY,
+                        [
+                            FUNCTIONS[FUNCTION_NAME][0](
+                                *(inputs[:i] + batch + inputs[i + 1 :]), log_message=log_message_func
+                            )
+                            for batch in inputs[batch_idx][1]
+                        ],
+                    ]
+                elif len(inputs) > 0 and sum(
+                    [
+                        inputs[i][0] == _RESERVED_BATCH_KEY if type(inputs[i]) == list and len(inputs[i]) > 0 else 0
+                        for i in range(len(inputs))
+                    ]
+                ) == len(inputs):
+                    outputs = [
+                        _RESERVED_BATCH_KEY,
+                        [
+                            FUNCTIONS[FUNCTION_NAME][0](*batch, log_message=log_message_func)
+                            for batch in zip(*[inp[1] for inp in inputs])
+                        ],
+                    ]
                 else:
                     outputs = FUNCTIONS[FUNCTION_NAME][0](*inputs, log_message=log_message_func)
 
@@ -538,7 +582,9 @@ def execute_function(dispatcher_url_, body, FUNCTION_NAME):
                 if len(files) > 0:
                     form_data = {
                         "node": body["id"],
-                        "output": json.dumps([output if not isinstance(output, io.BytesIO) else "" for output in outputs]),
+                        "output": json.dumps(
+                            [output if not isinstance(output, io.BytesIO) else "" for output in outputs]
+                        ),
                     }
 
                     files = {str(i): f for i, f in enumerate(outputs) if isinstance(f, io.BytesIO)}
@@ -568,6 +614,7 @@ def execute_function(dispatcher_url_, body, FUNCTION_NAME):
             },
         )
     print("Done execute function")
+
 
 def run(name: str, port=4823):
     """Runs the extension. Launches a HTTP server at the specified port for development and port 80 for production.
@@ -603,6 +650,12 @@ def handler(event, context):
             f.write("\n" + handler_source)
         subprocess.run([sys.executable, "-m", "pip", "install", "awslambdaric"], timeout=900)
         return
+    elif "MODE" in os.environ and os.environ["MODE"] == "JOB_RUN":
+        # Load the inputs from environment variable
+        body = json.loads(os.envrion["body"])
+        dispatcher_url = body.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
+        execute_function(dispatcher_url, body, body["node"]["metadata"]["operator"])
+        return "ok"
     elif "MODE" in os.environ and os.environ["MODE"] == "LAMBDA":
         subprocess.run(
             [sys.executable, "-m", "awslambdaric", sys.argv[0].replace(".py", ".handler")], cwd=os.getcwd(), timeout=900
@@ -742,7 +795,10 @@ def map(lst, fn, batch_size=10):
     if batch_size is None:
         batch_size = len(lst)
 
-    lst = [ [x] if not hasattr(x, "__iter__") or isinstance(x, str) else (x if isinstance(x, list) else list(x)) for x in lst ]
+    lst = [
+        [x] if not hasattr(x, "__iter__") or isinstance(x, str) else (x if isinstance(x, list) else list(x))
+        for x in lst
+    ]
 
     batches = [lst[i : i + batch_size] for i in range(0, len(lst), batch_size)]
 
