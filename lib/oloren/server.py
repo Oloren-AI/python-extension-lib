@@ -24,6 +24,14 @@ from functools import partial
 
 from contextlib import contextmanager
 
+DISPATCHER_URL = None
+TOKEN = None
+
+def set_vars(dispatcher_url, token):
+    global DISPATCHER_URL
+    global TOKEN
+    DISPATCHER_URL = dispatcher_url
+    TOKEN = token
 
 @contextmanager
 def change_dir(destination):
@@ -98,7 +106,6 @@ def register(name="", description="", num_outputs=1):
     """
 
     def decorator(func):
-        global dispatcher_url
         signature = inspect.signature(func)
 
         config = Config(
@@ -409,22 +416,16 @@ from multiprocessing import Process, Manager
 def operator(FUNCTION_NAME):
     start_dir = os.getcwd()
     print("Starting in directory: ", start_dir)
-    global dispatcher_url
     try:
         body = request.json
         body["node"]
         body["inputs"]
         body["id"]
 
-        dispatcher_url = body.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
+        DISPATCHER_URL = body.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
 
-        # Using a Manager dict to share dispatcher_url across processes
-        with Manager() as manager:
-            shared_dict = manager.dict()
-            shared_dict["dispatcher_url"] = dispatcher_url
-
-            p = Process(target=execute_function, args=(shared_dict, body, FUNCTION_NAME))
-            p.start()
+        p = Process(target=execute_function, args=(DISPATCHER_URL, body, FUNCTION_NAME))
+        p.start()
 
         response = jsonify("Ok")
         response.status_code = 200
@@ -433,7 +434,7 @@ def operator(FUNCTION_NAME):
     except Exception:
         error_msg = traceback.format_exc()
         requests.post(
-            f"{dispatcher_url}/node_error",
+            f"{DISPATCHER_URL}/node_error",
             headers={"Content-Type": "application/json"},
             json={
                 "node": body["id"],
@@ -451,28 +452,33 @@ def download_from_signed_url(signed_url):
             tmp_file.write(chunk)
     return tmp_file.name
 
-
-def download_from_file_record(record, token=None):
+def download_from_file_record(record):
     purl = requests.post(
-        f"{dispatcher_url}/get_purl",
-        data=json.dumps({"files": [record]}),
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
-    )
+        f"{DISPATCHER_URL}/get_purl",
+            data=json.dumps({"files": [record]}),
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {TOKEN}"},
+        )
     print(purl)
     return download_from_signed_url(purl.json()[0]["url"])
 
+def download_from_registered_file(path):
+    purl = requests.post(
+        f"{DISPATCHER_URL}/get_registered_purl",
+            data=json.dumps({"path": path}),
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {TOKEN}"},
+    )
 
-def execute_function(dispatcher_url_, body, FUNCTION_NAME):
+    return download_from_file_record(purl.json()[0]['fileInfo'])
+
+def execute_function(dispatcher_url, body, FUNCTION_NAME):
     print("Execute function called")
-    global dispatcher_url
-    dispatcher_url = dispatcher_url_
+    DISPATCHER_URL = dispatcher_url
+    TOKEN = body["node"]["token"]
 
     all_func = {}
 
-    def my_run_graph(*args, graph=None, timeout=15 * 60 * 200):
-        return run_blue_node(
-            graph, body["id"], dispatcher_url, args, body["uuid"], token=body["node"]["token"], timeout=timeout
-        )
+    def my_run_graph(*args, graph=None, timeout=15*60*200):
+        return run_blue_node(graph, body["id"], DISPATCHER_URL, args, body["uuid"], token=TOKEN, timeout = timeout)
 
     try:
         inputs = [inp["value"] for inp in body["node"]["data"]]
@@ -528,7 +534,7 @@ def execute_function(dispatcher_url_, body, FUNCTION_NAME):
         with tempfile.TemporaryDirectory() as tmp_dir:
             with change_dir(tmp_dir):
                 # print(f"Running {FUNCTION_NAME} with body {body}")
-                log_message_func = get_log_message_function(dispatcher_url_, body["uuid"])
+                log_message_func = get_log_message_function(DISPATCHER_URL, body["uuid"])
                 # print(f"Log message function: {log_message_func}")
 
                 if (
@@ -566,7 +572,7 @@ def execute_function(dispatcher_url_, body, FUNCTION_NAME):
                     ]
                 else:
                     outputs = FUNCTIONS[FUNCTION_NAME][0](*inputs, log_message=log_message_func)
-
+                print("Done running function with outputs: ", outputs)
                 if isinstance(outputs, tuple):
                     outputs = list(outputs)
                 else:
@@ -589,30 +595,33 @@ def execute_function(dispatcher_url_, body, FUNCTION_NAME):
 
                     files = {str(i): f for i, f in enumerate(outputs) if isinstance(f, io.BytesIO)}
 
-                    response = requests.post(f"{dispatcher_url}/node_finished_file", data=form_data, files=files)
+                    response = requests.post(f"{DISPATCHER_URL}/node_finished_file", data=form_data, files=files)
 
                     if response.status_code != 200:
+                        print(f"Failed to call node_finished_file on finish: {response.text}")
                         raise Exception(f"Failed to call node_finished_file on finish: {response.text}")
                 else:
                     response = requests.post(
-                        f"{dispatcher_url}/node_finished",
+                        f"{DISPATCHER_URL}/node_finished",
                         headers={"Content-Type": "application/json"},
                         json={"node": body["id"], "output": [output for output in outputs]},
                     )
 
                     if response.status_code != 200:
+                        print(f"Failed to call node_finished on finish: {response.text}")
                         raise Exception(f"Failed to call node_finished on finish: {response.text}")
     except Exception:
         error_msg = traceback.format_exc()
-        print(error_msg)
-        requests.post(
-            f"{dispatcher_url}/node_error",
+        print("Posting error: ", error_msg)
+        response = requests.post(
+            f"{DISPATCHER_URL}/node_error",
             headers={"Content-Type": "application/json"},
             json={
                 "node": body["id"],
                 "error": error_msg,
             },
         )
+        print(f"Posting error response, status code: {response.status_code}, text: {response.text}")
     print("Done execute function")
 
 
@@ -714,9 +723,9 @@ def handler(event, context):
     """
 
     body = json.loads(event["body"])
-    dispatcher_url = body.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
+    DISPATCHER_URL = body.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
 
-    execute_function(dispatcher_url, body, body["node"]["metadata"]["operator"])
+    execute_function(DISPATCHER_URL, body, body["node"]["metadata"]["operator"])
 
     return "Ok"
 
@@ -729,8 +738,7 @@ def upload_file(file_path):
     """
     This function uploads a file to Orchestrator and returns the file S3 json.
     """
-    global dispatcher_url
-    print("UPLOAD_FILE DISPATCHER_URL IS ", dispatcher_url)
+
     # Ensure the file exists
     try:
         with open(file_path, "rb") as f:
@@ -742,7 +750,7 @@ def upload_file(file_path):
     # Open the file in binary mode and upload it
     with open(file_path, "rb") as f:
         files = {"file": f}
-        upload_url = f"{dispatcher_url}/upload"
+        upload_url = f"{DISPATCHER_URL}/upload"
         response = requests.post(upload_url, files=files)
 
     # If the request was successful, print the response
@@ -757,8 +765,7 @@ def upload_file_purl(file_path):
     """
     This function uploads a file to Orchestrator and returns the file S3 json.
     """
-    global dispatcher_url
-    print("UPLOAD_FILE DISPATCHER_URL IS ", dispatcher_url)
+
     # Ensure the file exists
     try:
         with open(file_path, "rb") as f:
@@ -770,7 +777,7 @@ def upload_file_purl(file_path):
     # Open the file in binary mode and upload it
     with open(file_path, "rb") as f:
         files = {"file": f}
-        upload_url = f"{dispatcher_url}/upload_purl"
+        upload_url = f"{DISPATCHER_URL}/upload_purl"
         response = requests.post(upload_url, files=files)
 
     # If the request was successful, print the response
@@ -810,4 +817,4 @@ def map(lst, fn, batch_size=10):
     return results
 
 
-__all__ = ["register", "run", "handler", "upload_file", "upload_file_purl", "download_from_signed_url", "map"]
+__all__ = ["register", "run", "handler", "upload_file", "upload_file_purl", "download_from_signed_url", "download_from_file_record", "download_from_registered_file", "map", "set_vars", "DISPATCHER_URL", "TOKEN"]
