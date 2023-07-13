@@ -661,7 +661,7 @@ def handler(event, context):
         return
     elif "MODE" in os.environ and os.environ["MODE"] == "JOB_RUN":
         # Load the inputs from environment variable
-        body = json.loads(os.envrion["body"])
+        body = json.loads(os.environ["body"])
         dispatcher_url = body.get("dispatcherurl")
         execute_function(dispatcher_url, body, body["node"]["metadata"]["operator"])
         return "ok"
