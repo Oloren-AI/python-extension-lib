@@ -653,7 +653,7 @@ def handler(event, context):
     elif "MODE" in os.environ and os.environ["MODE"] == "JOB_RUN":
         # Load the inputs from environment variable
         body = json.loads(os.envrion["body"])
-        dispatcher_url = body.get("dispatcherurl") or f"http://{os.environ['DISPATCHER_URL']}"
+        dispatcher_url = body.get("dispatcherurl")
         execute_function(dispatcher_url, body, body["node"]["metadata"]["operator"])
         return "ok"
     elif "MODE" in os.environ and os.environ["MODE"] == "LAMBDA":
