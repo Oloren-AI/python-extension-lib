@@ -56,7 +56,6 @@ _RESERVED_BATCH_KEY = "RESERVED_OLOREN_KEYWORD_BATCH"
 
 
 def post_log_message(dispatcher_url, myUuid, progressId, level, message):
-    print("POSTING LOG MESSAGE to PROGRESS")
     response = requests.post(
         f"{dispatcher_url}/node_progress",
         headers={"Content-Type": "application/json"},
@@ -69,15 +68,9 @@ def post_log_message(dispatcher_url, myUuid, progressId, level, message):
         },
     )
 
-    print(f"LOG: {message}")
-    print(f"log message response: {response.status_code} {response.text}")
-
-
 def log_message(dispatcher_url, myUuid, progressId, level, message):
     log_thread = threading.Thread(target=post_log_message, args=(dispatcher_url, myUuid, progressId, level, message))
     log_thread.start()
-    print("Done logging message")
-
 
 def get_log_message_function(dispatcher_url, myUuid):
     def log(*messages, sep="", level=1):
@@ -817,4 +810,4 @@ def map(lst, fn, batch_size=10):
     return results
 
 
-__all__ = ["register", "run", "handler", "upload_file", "upload_file_purl", "download_from_signed_url", "download_from_file_record", "download_from_registered_file", "map", "set_vars", "DISPATCHER_URL", "TOKEN"]
+__all__ = ["register", "run", "handler", "upload_file", "upload_file_purl", "download_from_signed_url", "download_from_file_record", "download_from_registered_file", "map", "set_vars", "DISPATCHER_URL", "TOKEN", "app"]
