@@ -72,12 +72,13 @@ def log_message(dispatcher_url, myUuid, progressId, level, message):
     log_thread = threading.Thread(target=post_log_message, args=(dispatcher_url, myUuid, progressId, level, message))
     log_thread.start()
 
-def get_log_message_function(dispatcher_url, myUuid):
+def get_log_message_function(dispatcher_url, myUuid, token):
     def log(*messages, sep="", level=1):
         log_message(dispatcher_url, myUuid, str(uuid.uuid4()), level, sep.join([str(x) for x in messages]))
         
     log.dispatcher_url = dispatcher_url
     log.uuid = myUuid
+    log.token = token
 
     return log
 
@@ -529,7 +530,7 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
         with tempfile.TemporaryDirectory() as tmp_dir:
             with change_dir(tmp_dir):
                 # print(f"Running {FUNCTION_NAME} with body {body}")
-                log_message_func = get_log_message_function(DISPATCHER_URL, body["uuid"])
+                log_message_func = get_log_message_function(DISPATCHER_URL, body["uuid"], token=TOKEN)
                 # print(f"Log message function: {log_message_func}")
 
                 if (
