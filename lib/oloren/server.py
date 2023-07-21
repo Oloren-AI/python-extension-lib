@@ -75,9 +75,11 @@ def log_message(dispatcher_url, myUuid, progressId, level, message):
 def get_log_message_function(dispatcher_url, myUuid):
     def log(*messages, sep="", level=1):
         log_message(dispatcher_url, myUuid, str(uuid.uuid4()), level, sep.join([str(x) for x in messages]))
+        
+    log.dispatcher_url = dispatcher_url
+    log.uuid = myUuid
 
     return log
-
 
 def register(name="", description="", num_outputs=1):
     """Register a function as an extension.
