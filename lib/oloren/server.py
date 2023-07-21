@@ -447,20 +447,20 @@ def download_from_signed_url(signed_url):
             tmp_file.write(chunk)
     return tmp_file.name
 
-def download_from_file_record(record):
+def download_from_file_record(record, dispatcher_url=DISPATCHER_URL, token=TOKEN):
     purl = requests.post(
-        f"{DISPATCHER_URL}/get_purl",
+        f"{dispatcher_url}/get_purl",
             data=json.dumps({"files": [record]}),
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {TOKEN}"},
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
         )
     print(purl)
     return download_from_signed_url(purl.json()[0]["url"])
 
-def download_from_registered_file(path):
+def download_from_registered_file(path, dispatcher_url=DISPATCHER_URL, token=TOKEN):
     purl = requests.post(
-        f"{DISPATCHER_URL}/get_registered_purl",
+        f"{dispatcher_url}/get_registered_purl",
             data=json.dumps({"path": path}),
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {TOKEN}"},
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
     )
 
     return download_from_file_record(purl.json()[0]['fileInfo'])
