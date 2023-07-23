@@ -730,12 +730,13 @@ def print_message(message):
     pass
 
 
-def upload_file(file_path):
+def upload_file(file_path, dispatcher_url=DISPATCHER_URL, token=TOKEN):
     """
     This function uploads a file to Orchestrator and returns the file S3 json.
     """
 
     # Ensure the file exists
+    
     try:
         with open(file_path, "rb") as f:
             pass
@@ -746,7 +747,7 @@ def upload_file(file_path):
     # Open the file in binary mode and upload it
     with open(file_path, "rb") as f:
         files = {"file": f}
-        upload_url = f"{DISPATCHER_URL}/upload"
+        upload_url = f"{dispatcher_url}/upload"
         response = requests.post(upload_url, files=files)
 
     # If the request was successful, print the response
