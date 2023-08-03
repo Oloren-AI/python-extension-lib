@@ -467,8 +467,12 @@ def download_from_registered_file(path,
             data=json.dumps({"path": path}),
             headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
     )
+    
+    if purl.status_code != 200:
+        print("Error getting presigned url for downloading registered file, this is likely due to either the file not existing or not having the right permissions.")
+        raise Exception(purl.text)
 
-    return download_from_file_record(purl.json()[0]['fileInfo'], dispatcher_url = dispatcher_url, token = token)
+    return download_from_signed_url(purl.json()[0]['url'])
 
 def execute_function(dispatcher_url, body, FUNCTION_NAME):
     token = body["node"]["token"]
@@ -570,7 +574,6 @@ def execute_function(dispatcher_url, body, FUNCTION_NAME):
                     ]
                 else:
                     outputs = FUNCTIONS[FUNCTION_NAME][0](*inputs, log_message=log_message_func)
-                print("Done running function with outputs: ", outputs)
                 if isinstance(outputs, tuple):
                     outputs = list(outputs)
                 else:
