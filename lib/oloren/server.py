@@ -82,6 +82,42 @@ def get_log_message_function(dispatcher_url, myUuid, token):
 
     return log
 
+class ProgressBar:
+    def __init__(self, n, log_message):
+        self.n = n
+        self.log_message = log_message
+        self.progress_uuid = str(uuid.uuid4())
+        response = requests.post(
+            f"{log_message.dispatcher_url}/node_progress",
+            headers={"Content-Type": "application/json"},
+            json={
+                "progressId": self.progress_uuid,
+                "level": 1,
+                "type": "progressbar",
+                "data": {
+                            "numItems": n,
+                         },
+                "uuid": log_message.uuid,
+            },
+        )
+    
+    def increment(self):
+        response = requests.post(
+            f"{self.log_message.dispatcher_url}/node_progress",
+            headers={"Content-Type": "application/json"},
+            json={
+                "progressId": self.progress_uuid,
+                "level": 1,
+                "type": "progressbar",
+                "data": {
+                            str(uuid.uuid4()): 1
+                         },
+                "uuid": self.log_message.uuid,
+            },
+        )
+        
+        
+
 def register(name="", description="", num_outputs=1):
     """Register a function as an extension.
 
@@ -819,4 +855,4 @@ def map(lst, fn, batch_size=10):
     return results
 
 
-__all__ = ["register", "config", "run", "handler", "upload_file", "upload_file_purl", "download_from_signed_url", "download_from_file_record", "download_from_registered_file", "map", "set_vars", "app"]
+__all__ = ["register", "get_log_message_function","config", "run", "handler", "upload_file", "upload_file_purl", "download_from_signed_url", "download_from_file_record", "download_from_registered_file", "map", "set_vars", "app"]

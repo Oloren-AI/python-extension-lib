@@ -20,7 +20,7 @@ class API:
         
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {config['TOKEN']}" if config['TOKEN'] else None
+            "Authorization": f"Bearer {self.appDb['token']}" if self.appDb['token'] else None
         }
         
         data = {
@@ -33,11 +33,11 @@ class API:
         url = config["DISPATCHER_URL"] + "/api/run/" + self.appDb["name"]
 
         print("Launching app in session ", self.sessionId)
-        res = requests.post(url, headers=headers, json=data)
+        res = requests.post(url, headers=headers, json=data, timeout=600)
 
         if res.status_code != 200:
             print(res.text)
-            print(f"Failed to launch API call: {self.appDb['url']}. Please check your password.")
+            print(f"Failed to launch API call. Please check your password.")
             return None
         else:
             outputs = res.json()
